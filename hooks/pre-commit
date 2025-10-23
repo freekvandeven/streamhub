@@ -1,0 +1,49 @@
+#!/bin/bash
+# Git pre-commit hook for Flutter project
+# This runs automatically before each commit
+
+echo "🔍 Running pre-commit checks..."
+
+# Check if any Dart files are being committed
+DART_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.dart$')
+
+if [ -n "$DART_FILES" ]; then
+    # Run Dart formatter
+    echo "📝 Running dart format..."
+    if ! dart format --set-exit-if-changed $DART_FILES; then
+        echo "❌ Dart formatting failed. Please run 'dart format .' to format your code."
+        exit 1
+    fi
+    echo "✅ Dart format passed"
+
+    # Run Flutter analyze
+    echo "🔍 Running flutter analyze..."
+    if ! flutter analyze; then
+        echo "❌ Flutter analyze failed. Please fix the issues above."
+        exit 1
+    fi
+    echo "✅ Flutter analyze passed"
+
+    # Run Flutter tests
+    echo "🧪 Running flutter test..."
+    if ! flutter test; then
+        echo "❌ Tests failed. Please fix the failing tests."
+        exit 1
+    fi
+    echo "✅ Tests passed"
+fi
+
+# Check pubspec.yaml changes
+if git diff --cached --name-only | grep -q "pubspec.yaml"; then
+    echo "📦 Checking pubspec.yaml..."
+    if ! flutter pub get --offline > /dev/null 2>&1; then
+        if ! flutter pub get; then
+            echo "❌ pubspec.yaml validation failed."
+            exit 1
+        fi
+    fi
+    echo "✅ pubspec.yaml is valid"
+fi
+
+echo "✨ All pre-commit checks passed!"
+exit 0

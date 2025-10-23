@@ -1,0 +1,11 @@
+* text=auto eol=lf
+*.dart text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.ico binary

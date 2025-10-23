@@ -1,0 +1,50 @@
+# Pre-commit hooks configuration for Flutter IPTV app
+# See https://pre-commit.com for more information
+# Install: pip install pre-commit && pre-commit install
+
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.dart$
+      - id: end-of-file-fixer
+        exclude: \.dart$
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  # Flutter/Dart specific checks
+  - repo: local
+    hooks:
+      - id: dart-format
+        name: Dart Format Check
+        entry: dart format --set-exit-if-changed
+        language: system
+        files: \.dart$
+        pass_filenames: true
+
+      - id: flutter-analyze
+        name: Flutter Analyze
+        entry: flutter analyze
+        language: system
+        pass_filenames: false
+        files: \.dart$
+
+      - id: flutter-test
+        name: Flutter Test
+        entry: flutter test
+        language: system
+        pass_filenames: false
+        files: \.dart$
+
+      - id: check-pubspec
+        name: Check pubspec.yaml
+        entry: bash -c 'flutter pub get --offline || flutter pub get'
+        language: system
+        pass_filenames: false
+        files: pubspec\.yaml$
