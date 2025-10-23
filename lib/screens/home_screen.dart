@@ -14,6 +14,14 @@ class HomeScreen extends HookConsumerWidget {
     final urlController = useTextEditingController(text: defaultUrl);
     final playlistState = ref.watch(playlistProvider);
 
+    // Load from cache on first build
+    useEffect(() {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await ref.read(playlistProvider.notifier).loadFromCache();
+      });
+      return null;
+    }, []);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Playlist Loader"),
@@ -102,22 +110,88 @@ class HomeScreen extends HookConsumerWidget {
               ),
             if (playlistState.channels.isNotEmpty) ...[
               Card(
+                color: playlistState.isFromCache
+                    ? Colors.blue.shade50
+                    : Colors.green.shade50,
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        "${playlistState.channels.length} channels loaded",
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "${playlistState.channels.length} channels",
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      playlistState.isFromCache
+                                          ? Icons.storage
+                                          : Icons.cloud_download,
+                                      size: 16,
+                                      color: Colors.grey[600],
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      playlistState.isFromCache
+                                          ? "From cache"
+                                          : "Fresh from URL",
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (playlistState.lastUpdateTime != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    "Updated: ${_formatDateTime(
+                                      playlistState.lastUpdateTime!,
+                                    )}",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          if (playlistState.isFromCache)
+                            IconButton(
+                              onPressed: () async {
+                                final url = urlController.text.trim();
+                                if (url.isNotEmpty) {
+                                  await ref
+                                      .read(playlistProvider.notifier)
+                                      .fetchPlaylist(url, forceRefresh: true);
+                                }
+                              },
+                              icon: const Icon(Icons.refresh),
+                              tooltip: "Refresh from URL",
+                            ),
+                        ],
                       ),
-                      ElevatedButton.icon(
-                        onPressed: () => context.go("/channels"),
-                        icon: const Icon(Icons.list),
-                        label: const Text("View Channels"),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () => context.go("/channels"),
+                          icon: const Icon(Icons.list),
+                          label: const Text("View Channels"),
+                        ),
                       ),
                     ],
                   ),
@@ -128,5 +202,22 @@ class HomeScreen extends HookConsumerWidget {
         ),
       ),
     );
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inMinutes < 1) {
+      return "Just now";
+    } else if (difference.inMinutes < 60) {
+      return "${difference.inMinutes}m ago";
+    } else if (difference.inHours < 24) {
+      return "${difference.inHours}h ago";
+    } else if (difference.inDays < 7) {
+      return "${difference.inDays}d ago";
+    } else {
+      return "${dateTime.day}/${dateTime.month}/${dateTime.year}";
+    }
   }
 }

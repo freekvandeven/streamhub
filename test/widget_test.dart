@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:flutter_test/flutter_test.dart";
+import "package:hive/hive.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
 
 import "package:streamhub/main.dart";
@@ -10,6 +11,14 @@ void main() {
     // Initialize dotenv for tests (empty/mocked values)
     TestWidgetsFlutterBinding.ensureInitialized();
     dotenv.testLoad(fileInput: "PLAYLIST_URL=");
+
+    // Initialize Hive with in-memory storage for tests
+    Hive.init("test_hive");
+    await Hive.openBox<dynamic>("playlists");
+  });
+
+  tearDownAll(() async {
+    await Hive.deleteFromDisk();
   });
 
   testWidgets("App loads home screen with URL input", (
