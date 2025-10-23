@@ -188,9 +188,9 @@ class HomeScreen extends HookConsumerWidget {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: () => context.go("/channels"),
-                          icon: const Icon(Icons.list),
-                          label: const Text("View Channels"),
+                          onPressed: () => context.go("/categories"),
+                          icon: const Icon(Icons.category),
+                          label: const Text("Browse Categories"),
                         ),
                       ),
                     ],

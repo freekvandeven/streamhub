@@ -4,6 +4,7 @@ import "dart:io";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:http/http.dart" as http;
 import "package:streamhub/models/channel.dart";
+import "package:streamhub/services/channel_categorizer.dart";
 import "package:streamhub/services/m3u_parser.dart";
 import "package:streamhub/services/playlist_storage.dart";
 import "package:streamhub/utils/logger.dart";
@@ -101,7 +102,7 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
           Logger.info("Parsing M3U playlist...");
           final parseStartTime = DateTime.now();
 
-          final channels = M3uParser.parse(response.body);
+          var channels = M3uParser.parse(response.body);
 
           final parseDuration = DateTime.now().difference(parseStartTime);
 
@@ -111,12 +112,16 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
             "${parseDuration.inMilliseconds % 1000}s",
           );
 
-          // Analyze groups
-          final groupStats = _analyzeGroups(channels);
+          // Categorize channels
+          Logger.info("Categorizing channels...");
+          channels = ChannelCategorizer.categorize(channels);
+
+          // Analyze categories
+          final categoryStats = ChannelCategorizer.analyzeCategories(channels);
           Logger.data(
-            "Found ${groupStats['totalGroups']} groups, "
-            "largest: '${groupStats['largestGroup']}' "
-            "(${groupStats['largestGroupSize']} channels)",
+            "Found ${categoryStats['totalCategories']} categories, "
+            "largest: '${categoryStats['largestCategory']}' "
+            "(${categoryStats['largestCategoryCount']} channels)",
           );
 
           // Save to local storage
@@ -222,34 +227,6 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
       return "${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB";
     }
     return "${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB";
-  }
-
-  /// Analyzes channel groups and returns statistics
-  Map<String, dynamic> _analyzeGroups(List<Channel> channels) {
-    final groupCounts = <String, int>{};
-
-    for (final channel in channels) {
-      final group = channel.groupTitle ?? "Uncategorized";
-      groupCounts[group] = (groupCounts[group] ?? 0) + 1;
-    }
-
-    // Find largest group
-    var largestGroup = "Uncategorized";
-    var largestSize = 0;
-
-    for (final entry in groupCounts.entries) {
-      if (entry.value > largestSize) {
-        largestSize = entry.value;
-        largestGroup = entry.key;
-      }
-    }
-
-    return {
-      "totalGroups": groupCounts.length,
-      "largestGroup": largestGroup,
-      "largestGroupSize": largestSize,
-      "groupCounts": groupCounts,
-    };
   }
 }
 
