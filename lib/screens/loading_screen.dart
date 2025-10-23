@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "package:flutter_native_splash/flutter_native_splash.dart";
 import "package:go_router/go_router.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
+import "package:streamhub/providers/init_provider.dart";
 import "package:streamhub/services/playlist_storage.dart";
 
 class LoadingScreen extends ConsumerStatefulWidget {
@@ -32,11 +33,14 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen> {
       setState(() => _loadingMessage = "Initializing storage...");
       await PlaylistStorage.init();
 
+      // Mark as initialized
+      ref.read(initializationProvider.notifier).state = true;
+
       // Small delay to show completion
       setState(() => _loadingMessage = "Ready!");
       await Future.delayed(const Duration(milliseconds: 500));
 
-      // Navigate to home
+      // Router will automatically redirect to appropriate route
       if (mounted) {
         context.go("/");
       }
