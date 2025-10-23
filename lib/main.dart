@@ -1,8 +1,12 @@
 import "package:flutter/material.dart";
+import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
 import "package:iptv_app/router/app_router.dart";
 
-void main() {
+Future<void> main() async {
+  // Load environment variables
+  await dotenv.load(fileName: "dotenv");
+
   runApp(const ProviderScope(child: MyApp()));
 }
 

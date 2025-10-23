@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:flutter_hooks/flutter_hooks.dart";
 import "package:go_router/go_router.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
@@ -9,7 +10,8 @@ class HomeScreen extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final urlController = useTextEditingController();
+    final defaultUrl = dotenv.env["IPTV_PLAYLIST_URL"] ?? "";
+    final urlController = useTextEditingController(text: defaultUrl);
     final playlistState = ref.watch(playlistProvider);
 
     return Scaffold(

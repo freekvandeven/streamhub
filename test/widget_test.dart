@@ -1,10 +1,17 @@
 import "package:flutter/material.dart";
+import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
 
 import "package:iptv_app/main.dart";
 
 void main() {
+  setUpAll(() async {
+    // Initialize dotenv for tests (empty/mocked values)
+    TestWidgetsFlutterBinding.ensureInitialized();
+    dotenv.testLoad(fileInput: "IPTV_PLAYLIST_URL=");
+  });
+
   testWidgets("App loads home screen with URL input", (
     WidgetTester tester,
   ) async {
