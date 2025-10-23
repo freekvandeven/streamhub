@@ -47,6 +47,9 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
 
   /// Loads playlist from cache if available
   Future<void> loadFromCache() async {
+    // Set loading state while loading from cache
+    state = state.copyWith(isLoading: true);
+
     final cachedChannels = await PlaylistStorage.loadPlaylist();
     if (cachedChannels != null) {
       state = PlaylistState(
@@ -58,6 +61,7 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
       );
       Logger.success("Loaded playlist from cache");
     } else {
+      state = const PlaylistState(isLoading: false);
       Logger.info("No cached playlist available");
     }
   }

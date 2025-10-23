@@ -27,179 +27,219 @@ class HomeScreen extends HookConsumerWidget {
         title: const Text("Playlist Loader"),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      "Enter Playlist URL",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+      body: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          "Enter Playlist URL",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: urlController,
+                          decoration: const InputDecoration(
+                            hintText:
+                                "http://example.com/playlist.m3u",
+                            border: OutlineInputBorder(),
+                            labelText: "M3U Playlist URL",
+                          ),
+                          maxLines: 3,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: playlistState.isLoading
+                              ? null
+                              : () async {
+                                  final url = urlController.text.trim();
+                                  if (url.isNotEmpty) {
+                                    await ref
+                                        .read(playlistProvider.notifier)
+                                        .fetchPlaylist(url);
+                                  }
+                                },
+                          icon: playlistState.isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.download),
+                          label: Text(
+                            playlistState.isLoading
+                                ? "Loading..."
+                                : "Load Playlist",
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (playlistState.error != null)
+                  Card(
+                    color: Colors.red.shade50,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error, color: Colors.red),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              playlistState.error!,
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: urlController,
-                      decoration: const InputDecoration(
-                        hintText:
-                            "http://example.com/playlist.m3u",
-                        border: OutlineInputBorder(),
-                        labelText: "M3U Playlist URL",
+                  ),
+                if (playlistState.channels.isNotEmpty) ...[
+                  Card(
+                    color: playlistState.isFromCache
+                        ? Colors.blue.shade50
+                        : Colors.green.shade50,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "${playlistState.channels.length} "
+                                      "channels",
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          playlistState.isFromCache
+                                              ? Icons.storage
+                                              : Icons.cloud_download,
+                                          size: 16,
+                                          color: Colors.grey[600],
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          playlistState.isFromCache
+                                              ? "From cache"
+                                              : "Fresh from URL",
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (playlistState.lastUpdateTime !=
+                                        null) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        "Updated: ${_formatDateTime(
+                                          playlistState.lastUpdateTime!,
+                                        )}",
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              if (playlistState.isFromCache)
+                                IconButton(
+                                  onPressed: () async {
+                                    final url = urlController.text.trim();
+                                    if (url.isNotEmpty) {
+                                      await ref
+                                          .read(playlistProvider.notifier)
+                                          .fetchPlaylist(
+                                            url,
+                                            forceRefresh: true,
+                                          );
+                                    }
+                                  },
+                                  icon: const Icon(Icons.refresh),
+                                  tooltip: "Refresh from URL",
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () => context.go("/categories"),
+                              icon: const Icon(Icons.category),
+                              label: const Text("Browse Categories"),
+                            ),
+                          ),
+                        ],
                       ),
-                      maxLines: 3,
                     ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: playlistState.isLoading
-                          ? null
-                          : () async {
-                              final url = urlController.text.trim();
-                              if (url.isNotEmpty) {
-                                await ref
-                                    .read(playlistProvider.notifier)
-                                    .fetchPlaylist(url);
-                              }
-                            },
-                      icon: playlistState.isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.download),
-                      label: Text(
-                        playlistState.isLoading
-                            ? "Loading..."
-                            : "Load Playlist",
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          // Loading overlay when loading from cache
+          if (playlistState.isLoading && playlistState.channels.isEmpty)
+            ColoredBox(
+              color: Colors.black.withValues(alpha: 0.5),
+              child: Center(
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 16),
+                        Text(
+                          "Loading playlist from cache...",
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "This may take a moment for large playlists",
+                          style: Theme.of(context).textTheme.bodySmall,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-            if (playlistState.error != null)
-              Card(
-                color: Colors.red.shade50,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error, color: Colors.red),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          playlistState.error!,
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            if (playlistState.channels.isNotEmpty) ...[
-              Card(
-                color: playlistState.isFromCache
-                    ? Colors.blue.shade50
-                    : Colors.green.shade50,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "${playlistState.channels.length} channels",
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      playlistState.isFromCache
-                                          ? Icons.storage
-                                          : Icons.cloud_download,
-                                      size: 16,
-                                      color: Colors.grey[600],
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      playlistState.isFromCache
-                                          ? "From cache"
-                                          : "Fresh from URL",
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (playlistState.lastUpdateTime != null) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    "Updated: ${_formatDateTime(
-                                      playlistState.lastUpdateTime!,
-                                    )}",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          if (playlistState.isFromCache)
-                            IconButton(
-                              onPressed: () async {
-                                final url = urlController.text.trim();
-                                if (url.isNotEmpty) {
-                                  await ref
-                                      .read(playlistProvider.notifier)
-                                      .fetchPlaylist(url, forceRefresh: true);
-                                }
-                              },
-                              icon: const Icon(Icons.refresh),
-                              tooltip: "Refresh from URL",
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () => context.go("/categories"),
-                          icon: const Icon(Icons.category),
-                          label: const Text("Browse Categories"),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
+        ],
       ),
     );
   }
