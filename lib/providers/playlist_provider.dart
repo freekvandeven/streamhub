@@ -53,12 +53,13 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
 
     final cachedChannels = await PlaylistStorage.loadPlaylist();
     if (cachedChannels != null) {
+      final lastUpdate = await PlaylistStorage.getLastUpdateTime();
       state = PlaylistState(
         channels: cachedChannels,
         isLoading: false,
         error: null,
         isFromCache: true,
-        lastUpdateTime: PlaylistStorage.getLastUpdateTime(),
+        lastUpdateTime: lastUpdate,
       );
       Logger.success("Loaded playlist from cache");
     } else {

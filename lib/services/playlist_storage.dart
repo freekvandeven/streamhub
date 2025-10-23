@@ -9,11 +9,18 @@ abstract final class PlaylistStorage {
   static const String _lastUpdateKey = "last_update";
   static const String _playlistUrlKey = "playlist_url";
 
-  /// Initializes Hive storage
+  /// Initializes Hive storage (lightweight - just initializes Hive)
   static Future<void> init() async {
     await Hive.initFlutter();
-    await Hive.openBox<dynamic>(_boxName);
-    Logger.success("Local storage initialized");
+    Logger.success("Hive initialized");
+  }
+
+  /// Gets or opens the storage box (lazy loading)
+  static Future<Box<dynamic>> _getBox() async {
+    if (Hive.isBoxOpen(_boxName)) {
+      return Hive.box<dynamic>(_boxName);
+    }
+    return Hive.openBox<dynamic>(_boxName);
   }
 
   /// Saves playlist to local storage
@@ -22,7 +29,7 @@ abstract final class PlaylistStorage {
     String playlistUrl,
   ) async {
     try {
-      final box = Hive.box<dynamic>(_boxName);
+      final box = await _getBox();
       final startTime = DateTime.now();
 
       // Convert channels to JSON
@@ -56,7 +63,7 @@ abstract final class PlaylistStorage {
   /// Loads playlist from local storage
   static Future<List<Channel>?> loadPlaylist() async {
     try {
-      final box = Hive.box<dynamic>(_boxName);
+      final box = await _getBox();
       final startTime = DateTime.now();
 
       final channelsJson = box.get(_channelsKey) as List<dynamic>?;
@@ -91,8 +98,9 @@ abstract final class PlaylistStorage {
   }
 
   /// Gets the last update time of the cached playlist
-  static DateTime? getLastUpdateTime() {
+  static Future<DateTime?> getLastUpdateTime() async {
     try {
+      if (!Hive.isBoxOpen(_boxName)) return null;
       final box = Hive.box<dynamic>(_boxName);
       final lastUpdate = box.get(_lastUpdateKey) as String?;
       if (lastUpdate == null) return null;
@@ -104,8 +112,9 @@ abstract final class PlaylistStorage {
   }
 
   /// Gets the URL of the cached playlist
-  static String? getCachedPlaylistUrl() {
+  static Future<String?> getCachedPlaylistUrl() async {
     try {
+      if (!Hive.isBoxOpen(_boxName)) return null;
       final box = Hive.box<dynamic>(_boxName);
       return box.get(_playlistUrlKey) as String?;
     } on Exception catch (e) {
@@ -115,7 +124,8 @@ abstract final class PlaylistStorage {
   }
 
   /// Checks if there is a cached playlist
-  static bool hasCachedPlaylist() {
+  static Future<bool> hasCachedPlaylist() async {
+    if (!Hive.isBoxOpen(_boxName)) return false;
     final box = Hive.box<dynamic>(_boxName);
     return box.containsKey(_channelsKey);
   }
@@ -123,7 +133,7 @@ abstract final class PlaylistStorage {
   /// Clears the cached playlist
   static Future<void> clearCache() async {
     try {
-      final box = Hive.box<dynamic>(_boxName);
+      final box = await _getBox();
       await box.clear();
       Logger.success("Cache cleared");
     } on Exception catch (e) {
@@ -132,14 +142,24 @@ abstract final class PlaylistStorage {
   }
 
   /// Gets cache statistics
-  static Map<String, dynamic> getCacheStats() {
+  static Future<Map<String, dynamic>> getCacheStats() async {
+    if (!Hive.isBoxOpen(_boxName)) {
+      return {
+        "hasCachedData": false,
+        "lastUpdate": null,
+        "playlistUrl": null,
+        "channelCount": 0,
+        "cacheAge": null,
+      };
+    }
+
     final box = Hive.box<dynamic>(_boxName);
-    final lastUpdate = getLastUpdateTime();
-    final playlistUrl = getCachedPlaylistUrl();
+    final lastUpdate = await getLastUpdateTime();
+    final playlistUrl = await getCachedPlaylistUrl();
     final channelsJson = box.get(_channelsKey) as List<dynamic>?;
 
     return {
-      "hasCachedData": hasCachedPlaylist(),
+      "hasCachedData": await hasCachedPlaylist(),
       "lastUpdate": lastUpdate?.toIso8601String(),
       "playlistUrl": playlistUrl,
       "channelCount": channelsJson?.length ?? 0,
