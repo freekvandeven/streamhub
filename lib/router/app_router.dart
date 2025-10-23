@@ -15,10 +15,10 @@ final router = GoRouter(
     GoRoute(
       path: "/category-channels",
       builder: (context, state) {
-        final extra = state.extra as Map<String, dynamic>;
+        final extra = state.extra! as Map<String, dynamic>;
         return CategoryChannelsScreen(
-          categoryName: extra["categoryName"] as String,
-          channels: extra["channels"] as List<Channel>,
+          categoryName: extra["categoryName"]! as String,
+          channels: extra["channels"]! as List<Channel>,
         );
       },
     ),

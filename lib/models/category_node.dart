@@ -1,5 +1,33 @@
 /// Represents a hierarchical category node with parent-child relationships
 class CategoryNode {
+  CategoryNode({
+    required this.id,
+    required this.name,
+    required this.path,
+    this.parent,
+    this.channelCount = 0,
+    this.channelIndices = const [],
+    this.children = const [],
+  });
+
+  /// Create from JSON
+  factory CategoryNode.fromJson(Map<String, dynamic> json) {
+    final children =
+        (json["children"] as List?)
+            ?.map((c) => CategoryNode.fromJson(c as Map<String, dynamic>))
+            .toList() ??
+        [];
+
+    return CategoryNode(
+      id: json["id"] as String,
+      name: json["name"] as String,
+      path: json["path"] as String,
+      channelCount: json["channelCount"] as int? ?? 0,
+      channelIndices: (json["channelIndices"] as List?)?.cast<int>() ?? [],
+      children: children,
+    );
+  }
+
   /// Unique identifier for this category
   final String id;
 
@@ -20,16 +48,6 @@ class CategoryNode {
 
   /// Child categories
   final List<CategoryNode> children;
-
-  CategoryNode({
-    required this.id,
-    required this.name,
-    required this.path,
-    this.parent,
-    this.channelCount = 0,
-    this.channelIndices = const [],
-    this.children = const [],
-  });
 
   /// Total channels including all descendants
   int get totalChannelCount {
@@ -56,24 +74,6 @@ class CategoryNode {
       "channelIndices": channelIndices,
       "children": children.map((c) => c.toJson()).toList(),
     };
-  }
-
-  /// Create from JSON
-  factory CategoryNode.fromJson(Map<String, dynamic> json) {
-    final children =
-        (json["children"] as List?)
-            ?.map((c) => CategoryNode.fromJson(c as Map<String, dynamic>))
-            .toList() ??
-        [];
-
-    return CategoryNode(
-      id: json["id"] as String,
-      name: json["name"] as String,
-      path: json["path"] as String,
-      channelCount: json["channelCount"] as int? ?? 0,
-      channelIndices: (json["channelIndices"] as List?)?.cast<int>() ?? [],
-      children: children,
-    );
   }
 
   /// Copy with modifications

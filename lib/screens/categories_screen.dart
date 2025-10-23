@@ -27,14 +27,16 @@ class CategoriesScreen extends HookConsumerWidget {
       final categoryList =
           groups.entries
               .map(
-                (e) => {
+                (e) => <String, Object>{
                   "name": e.key,
                   "count": e.value.length,
                   "channels": e.value,
                 },
               )
               .toList()
-            ..sort((a, b) => (b["count"] as int).compareTo(a["count"] as int));
+            ..sort(
+              (a, b) => (b["count"]! as int).compareTo(a["count"]! as int),
+            );
 
       return categoryList;
     }, [playlistState.channels]);
@@ -46,7 +48,7 @@ class CategoriesScreen extends HookConsumerWidget {
       }
       final query = searchQuery.value.toLowerCase();
       return categoryData.where((cat) {
-        final name = (cat["name"] as String).toLowerCase();
+        final name = (cat["name"]! as String).toLowerCase();
         return name.contains(query);
       }).toList();
     }, [categoryData, searchQuery.value]);
@@ -115,9 +117,9 @@ class CategoriesScreen extends HookConsumerWidget {
                     itemCount: filteredCategories.length,
                     itemBuilder: (context, index) {
                       final category = filteredCategories[index];
-                      final name = category["name"] as String;
-                      final count = category["count"] as int;
-                      final channels = category["channels"] as List<Channel>;
+                      final name = category["name"]! as String;
+                      final count = category["count"]! as int;
+                      final channels = category["channels"]! as List<Channel>;
 
                       return Card(
                         margin: const EdgeInsets.symmetric(

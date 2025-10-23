@@ -171,11 +171,11 @@ abstract final class ChannelCategorizer {
 
       // Check various country code formats
       final patterns = [
-        RegExp("^\\[${code}\\]", caseSensitive: false), // [UK] at start
-        RegExp("^${code}:", caseSensitive: false), // UK: at start
-        RegExp("^${code}\\s", caseSensitive: false), // UK at start
-        RegExp("\\|${code}\\|", caseSensitive: false), // |UK|
-        RegExp("\\(${code}\\)", caseSensitive: false), // (UK)
+        RegExp("^\\[$code\\]", caseSensitive: false), // [UK] at start
+        RegExp("^$code:", caseSensitive: false), // UK: at start
+        RegExp("^$code\\s", caseSensitive: false), // UK at start
+        RegExp("\\|$code\\|", caseSensitive: false), // |UK|
+        RegExp("\\($code\\)", caseSensitive: false), // (UK)
       ];
 
       for (final pattern in patterns) {
