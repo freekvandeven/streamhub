@@ -1,4 +1,4 @@
-import "package:iptv_app/models/channel.dart";
+import "package:streamhub/models/channel.dart";
 
 /// M3U playlist parser
 abstract final class M3uParser {

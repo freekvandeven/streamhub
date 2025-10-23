@@ -1,7 +1,7 @@
 import "package:flutter/material.dart";
 import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
-import "package:iptv_app/router/app_router.dart";
+import "package:streamhub/router/app_router.dart";
 
 Future<void> main() async {
   // Load environment variables
@@ -16,7 +16,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: "IPTV App",
+      title: "StreamHub",
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,

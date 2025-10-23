@@ -1,4 +1,4 @@
-# IPTV App Troubleshooting
+# StreamHub Troubleshooting
 
 ## Common Error: "ClientException: Failed to fetch"
 
@@ -8,7 +8,7 @@ If you're seeing this error when trying to load a playlist that works on your TV
 
 **Why it happens:**
 - When running on Chrome, Edge, or desktop, browsers block HTTP requests to servers that don't allow cross-origin requests
-- IPTV servers typically don't send CORS headers since they're designed for media players, not web browsers
+- Streaming servers typically don't send CORS headers since they're designed for media players, not web browsers
 
 **Solution:**
 - ✅ **Run on Android or iOS** - Mobile apps don't have CORS restrictions
@@ -24,7 +24,7 @@ If you're seeing this error when trying to load a playlist that works on your TV
 ### 🔒 Problem 2: SSL/TLS Certificate Issues
 
 **Why it happens:**
-- Many IPTV providers use self-signed or invalid SSL certificates
+- Many streaming providers use self-signed or invalid SSL certificates
 - Desktop/web browsers strictly enforce SSL validation
 
 **Solution:**
@@ -100,7 +100,7 @@ Try this test URL that supports CORS:
 https://iptv-org.github.io/iptv/index.m3u
 ```
 
-If this works but your IPTV URL doesn't, it confirms a CORS issue.
+If this works but your playlist URL doesn't, it confirms a CORS issue.
 
 ## Platform Compatibility
 

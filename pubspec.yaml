@@ -1,5 +1,5 @@
-name: iptv_app
-description: "A Flutter IPTV streaming app proof of concept."
+name: streamhub
+description: "A Flutter M3U playlist streaming app for legal content."
 publish_to: 'none'
 version: 1.0.0+1
 

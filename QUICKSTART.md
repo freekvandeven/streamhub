@@ -17,8 +17,8 @@ flutter run -d <device-id>
 ## What You Can Do
 
 1. **Load a Playlist**
-   - Enter your IPTV playlist URL on the home screen
-   - Format: `http://domain.com/get.php?username=XXX&password=YYY&type=m3u&output=mpegts`
+   - Enter your M3U playlist URL on the home screen
+   - Format: `http://example.com/playlist.m3u`
    - Click "Load Playlist"
 
 2. **View Channels**

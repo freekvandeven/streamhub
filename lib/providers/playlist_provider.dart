@@ -3,9 +3,9 @@ import "dart:io";
 
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:http/http.dart" as http;
-import "package:iptv_app/models/channel.dart";
-import "package:iptv_app/services/m3u_parser.dart";
-import "package:iptv_app/utils/logger.dart";
+import "package:streamhub/models/channel.dart";
+import "package:streamhub/services/m3u_parser.dart";
+import "package:streamhub/utils/logger.dart";
 
 /// State for playlist loading
 class PlaylistState {

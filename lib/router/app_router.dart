@@ -1,6 +1,6 @@
 import "package:go_router/go_router.dart";
-import "package:iptv_app/screens/channels_screen.dart";
-import "package:iptv_app/screens/home_screen.dart";
+import "package:streamhub/screens/channels_screen.dart";
+import "package:streamhub/screens/home_screen.dart";
 
 final router = GoRouter(
   initialLocation: "/",

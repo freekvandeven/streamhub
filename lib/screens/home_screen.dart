@@ -3,20 +3,20 @@ import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:flutter_hooks/flutter_hooks.dart";
 import "package:go_router/go_router.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
-import "package:iptv_app/providers/playlist_provider.dart";
+import "package:streamhub/providers/playlist_provider.dart";
 
 class HomeScreen extends HookConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final defaultUrl = dotenv.env["IPTV_PLAYLIST_URL"] ?? "";
+    final defaultUrl = dotenv.env["PLAYLIST_URL"] ?? "";
     final urlController = useTextEditingController(text: defaultUrl);
     final playlistState = ref.watch(playlistProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("IPTV Playlist Loader"),
+        title: const Text("Playlist Loader"),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: Padding(
@@ -42,7 +42,7 @@ class HomeScreen extends HookConsumerWidget {
                       controller: urlController,
                       decoration: const InputDecoration(
                         hintText:
-                            "http://odm391.xyz/get.php?username=...&password=...",
+                            "http://example.com/playlist.m3u",
                         border: OutlineInputBorder(),
                         labelText: "M3U Playlist URL",
                       ),
