@@ -1,6 +1,7 @@
 import "dart:async";
 import "dart:io";
 
+import "package:flutter/foundation.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:http/http.dart" as http;
 import "package:streamhub/models/channel.dart";
@@ -50,20 +51,32 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
     // Set loading state while loading from cache
     state = state.copyWith(isLoading: true);
 
-    final cachedChannels = await PlaylistStorage.loadPlaylist();
-    if (cachedChannels != null) {
-      state = PlaylistState(
-        channels: cachedChannels,
-        isLoading: false,
-        error: null,
-        isFromCache: true,
-        lastUpdateTime: PlaylistStorage.getLastUpdateTime(),
-      );
-      Logger.success("Loaded playlist from cache");
-    } else {
+    try {
+      // Run the heavy loading operation in a background isolate
+      final cachedChannels = await compute(_loadPlaylistInBackground, null);
+
+      if (cachedChannels != null) {
+        state = PlaylistState(
+          channels: cachedChannels,
+          isLoading: false,
+          error: null,
+          isFromCache: true,
+          lastUpdateTime: PlaylistStorage.getLastUpdateTime(),
+        );
+        Logger.success("Loaded playlist from cache");
+      } else {
+        state = const PlaylistState(isLoading: false);
+        Logger.info("No cached playlist available");
+      }
+    } on Exception catch (e) {
+      Logger.error("Error loading from cache: $e");
       state = const PlaylistState(isLoading: false);
-      Logger.info("No cached playlist available");
     }
+  }
+
+  /// Background function to load playlist (runs in isolate)
+  static Future<List<Channel>?> _loadPlaylistInBackground(void _) async {
+    return PlaylistStorage.loadPlaylist();
   }
 
   /// Fetches and parses the M3U playlist from the given URL
