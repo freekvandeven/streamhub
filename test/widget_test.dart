@@ -4,7 +4,7 @@ import "package:flutter_test/flutter_test.dart";
 import "package:hive/hive.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
 
-import "package:streamhub/main.dart";
+import "package:streamhub/screens/home_screen.dart";
 
 void main() {
   setUpAll(() async {
@@ -24,8 +24,12 @@ void main() {
   testWidgets("App loads home screen with URL input", (
     WidgetTester tester,
   ) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const ProviderScope(child: MyApp()));
+    // Build home screen directly for testing
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(home: HomeScreen()),
+      ),
+    );
 
     // Verify that we're on the home screen
     expect(find.text("Playlist Loader"), findsOneWidget);
@@ -37,7 +41,11 @@ void main() {
   });
 
   testWidgets("Can enter URL in text field", (WidgetTester tester) async {
-    await tester.pumpWidget(const ProviderScope(child: MyApp()));
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(home: HomeScreen()),
+      ),
+    );
 
     // Find the text field and enter a URL
     final textField = find.byType(TextField);
@@ -51,7 +59,11 @@ void main() {
   });
 
   testWidgets("Load Playlist button is present", (WidgetTester tester) async {
-    await tester.pumpWidget(const ProviderScope(child: MyApp()));
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(home: HomeScreen()),
+      ),
+    );
 
     // Find the load playlist button by text
     final loadButton = find.text("Load Playlist");

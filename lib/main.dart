@@ -1,19 +1,18 @@
 import "package:flutter/material.dart";
 import "package:flutter_dotenv/flutter_dotenv.dart";
+import "package:flutter_native_splash/flutter_native_splash.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
 import "package:streamhub/router/app_router.dart";
-import "package:streamhub/services/playlist_storage.dart";
 
 Future<void> main() async {
-  // Ensure Flutter binding is initialized
-  WidgetsFlutterBinding.ensureInitialized();
+  // Preserve splash screen until Flutter is ready
+  final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  // Load environment variables
+  // Load environment variables (quick operation)
   await dotenv.load(fileName: "dotenv");
 
-  // Initialize local storage
-  await PlaylistStorage.init();
-
+  // Run app - splash will be removed in LoadingScreen
   runApp(const ProviderScope(child: MyApp()));
 }
 

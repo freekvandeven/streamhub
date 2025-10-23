@@ -19,6 +19,7 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   path_provider: ^2.1.1
+  flutter_native_splash: ^2.4.1
 
 dev_dependencies:
   flutter_test:
@@ -32,3 +33,13 @@ flutter:
   uses-material-design: true
   assets:
     - dotenv
+
+flutter_native_splash:
+  color: "#667eea"
+  color_dark: "#667eea"
+  android_12:
+    color: "#667eea"
+    color_dark: "#667eea"
+  web: true
+  android: true
+  ios: true

@@ -3,10 +3,15 @@ import "package:streamhub/models/channel.dart";
 import "package:streamhub/screens/categories_screen.dart";
 import "package:streamhub/screens/category_channels_screen.dart";
 import "package:streamhub/screens/home_screen.dart";
+import "package:streamhub/screens/loading_screen.dart";
 
 final router = GoRouter(
-  initialLocation: "/",
+  initialLocation: "/loading",
   routes: [
+    GoRoute(
+      path: "/loading",
+      builder: (context, state) => const LoadingScreen(),
+    ),
     GoRoute(path: "/", builder: (context, state) => const HomeScreen()),
     GoRoute(
       path: "/categories",
