@@ -45,15 +45,18 @@ abstract final class ChannelCategorizer {
     }
 
     final name = channel.name.toLowerCase();
+    final url = channel.url.toLowerCase();
 
-    // 1. Check for VOD content (Movies & Series)
-    final vodCategory = _detectVodCategory(name);
+    // 1. Check if URL contains video file extension (VOD indicator)
+    final isVideoFile = _isVideoFileUrl(url);
+
+    // 2. Check for VOD content (Movies & Series)
+    final vodCategory = _detectVodCategory(name, url, isVideoFile);
     if (vodCategory != null) {
-      // VOD gets its own top-level categories
-      return vodCategory; // "Movies" or "Series"
+      return vodCategory; // Returns hierarchical path for VOD
     }
 
-    // 2. Check for country-specific channels (creates hierarchical path)
+    // 3. Check for country-specific channels (creates hierarchical path)
     final countryInfo = _detectCountryInfo(name, channel.name);
     if (countryInfo != null) {
       final country = countryInfo["country"] as String;
@@ -67,42 +70,174 @@ abstract final class ChannelCategorizer {
       return "Live TV > $country";
     }
 
-    // 3. Check for genre without country
+    // 4. Check for genre without country
     final genre = _detectGenreCategory(name);
     if (genre != null) {
       return "Live TV > $genre";
     }
 
-    // 4. Default to "Live TV"
+    // 5. Default to "Live TV"
     return "Live TV";
   }
 
-  /// Detects VOD content (Movies, Series)
-  static String? _detectVodCategory(String name) {
-    // Movie indicators: [VOD], year (2020-2025), "movie", etc.
-    if (name.contains("[vod]") ||
-        name.contains("(vod)") ||
-        name.contains("movie")) {
-      return "Movies";
-    }
+  /// Checks if URL points to a video file
+  static bool _isVideoFileUrl(String url) {
+    final videoExtensions = [
+      ".mkv",
+      ".mp4",
+      ".avi",
+      ".mov",
+      ".wmv",
+      ".flv",
+      ".webm",
+      ".m4v",
+      ".mpg",
+      ".mpeg",
+      ".3gp",
+      ".ts",
+      ".m3u8",
+    ];
 
+    return videoExtensions.any((ext) => url.contains(ext));
+  }
+
+  /// Detects VOD content (Movies, Series) with hierarchical categorization
+  static String? _detectVodCategory(String name, String url, bool isVideoFile) {
     // Series indicators: S01E01, Season 1, Episode, etc.
     final seriesPatterns = [
       RegExp(r"s\d{2}e\d{2}"), // S01E01
+      RegExp(r"s\d{1,2}\s*e\d{1,2}"), // S1E1, S1 E1
       RegExp(r"season\s*\d+"), // Season 1
       RegExp(r"episode\s*\d+"), // Episode 1
       RegExp(r"\|\s*s\d+"), // | S1
+      RegExp(r"\bs\d{2}\b"), // S01 (standalone)
     ];
 
+    // Check for series patterns first (more specific)
     for (final pattern in seriesPatterns) {
       if (pattern.hasMatch(name)) {
+        // Try to extract genre from series name
+        final genre = _detectVodGenre(name);
+        if (genre != null) {
+          return "Series > $genre";
+        }
         return "Series";
       }
     }
 
-    // Year in parentheses often indicates movies
-    if (RegExp(r"\(20[2-9]\d\)").hasMatch(name)) {
+    // Movie indicators
+    final movieIndicators = [
+      "[vod]",
+      "(vod)",
+      "movie",
+      "film",
+    ];
+
+    final hasMovieIndicator = movieIndicators.any((i) => name.contains(i));
+
+    // Year patterns for movies
+    final yearPatterns = [
+      RegExp(r"\(19\d{2}\)"), // (1990-1999)
+      RegExp(r"\(20[0-9]{2}\)"), // (2000-2099)
+      RegExp(r"\[19\d{2}\]"), // [1990-1999]
+      RegExp(r"\[20[0-9]{2}\]"), // [2000-2099]
+    ];
+
+    final hasYearPattern = yearPatterns.any((p) => p.hasMatch(name));
+
+    // If it's a video file and has movie indicators or year, it's a movie
+    if (isVideoFile && (hasMovieIndicator || hasYearPattern)) {
+      final genre = _detectVodGenre(name);
+      if (genre != null) {
+        return "Movies > $genre";
+      }
       return "Movies";
+    }
+
+    // If video file but no clear series pattern, likely a movie
+    if (isVideoFile && !hasMovieIndicator && !hasYearPattern) {
+      // Check if it looks more like a series or movie
+      // If it has episode-like naming but didn't match series patterns
+      if (name.contains("ep") || name.contains("part") || name.contains("pt")) {
+        final genre = _detectVodGenre(name);
+        if (genre != null) {
+          return "Series > $genre";
+        }
+        return "Series";
+      }
+
+      // Default video files to movies if no other indicators
+      final genre = _detectVodGenre(name);
+      if (genre != null) {
+        return "Movies > $genre";
+      }
+      return "Movies";
+    }
+
+    // Explicit movie/film indicators without video extension
+    if (hasMovieIndicator) {
+      final genre = _detectVodGenre(name);
+      if (genre != null) {
+        return "Movies > $genre";
+      }
+      return "Movies";
+    }
+
+    return null;
+  }
+
+  /// Detects genre for VOD content
+  static String? _detectVodGenre(String name) {
+    // Action & Adventure
+    if (name.contains("action") ||
+        name.contains("adventure") ||
+        name.contains("thriller")) {
+      return "Action & Adventure";
+    }
+
+    // Comedy
+    if (name.contains("comedy") || name.contains("funny")) {
+      return "Comedy";
+    }
+
+    // Drama
+    if (name.contains("drama")) {
+      return "Drama";
+    }
+
+    // Horror & Thriller
+    if (name.contains("horror") ||
+        name.contains("scary") ||
+        name.contains("fear")) {
+      return "Horror";
+    }
+
+    // Sci-Fi & Fantasy
+    if (name.contains("sci-fi") ||
+        name.contains("scifi") ||
+        name.contains("fantasy") ||
+        name.contains("space")) {
+      return "Sci-Fi & Fantasy";
+    }
+
+    // Romance
+    if (name.contains("romance") || name.contains("love")) {
+      return "Romance";
+    }
+
+    // Animation & Kids
+    if (name.contains("animation") ||
+        name.contains("animated") ||
+        name.contains("cartoon") ||
+        name.contains("kids")) {
+      return "Animation & Kids";
+    }
+
+    // Documentary
+    if (name.contains("documentary") ||
+        name.contains("docu") ||
+        name.contains("true story")) {
+      return "Documentary";
     }
 
     return null;
