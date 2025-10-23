@@ -53,24 +53,6 @@ abstract final class PlaylistStorage {
     }
   }
 
-  /// Loads raw playlist data from local storage (for chunked processing)
-  static Future<List<dynamic>?> loadPlaylistData() async {
-    try {
-      final box = Hive.box<dynamic>(_boxName);
-      final channelsJson = box.get(_channelsKey) as List<dynamic>?;
-
-      if (channelsJson == null) {
-        Logger.info("No cached playlist found");
-        return null;
-      }
-
-      return channelsJson;
-    } on Exception catch (e) {
-      Logger.error("Failed to load playlist data: $e");
-      return null;
-    }
-  }
-
   /// Loads playlist from local storage
   static Future<List<Channel>?> loadPlaylist() async {
     try {

@@ -51,87 +51,25 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
     // Set loading state while loading from cache
     state = state.copyWith(isLoading: true);
 
-    try {
-      // Load channels in chunks to keep UI responsive
-      final cachedChannels = await _loadPlaylistInChunks();
-
-      if (cachedChannels != null) {
-        state = PlaylistState(
-          channels: cachedChannels,
-          isLoading: false,
-          error: null,
-          isFromCache: true,
-          lastUpdateTime: PlaylistStorage.getLastUpdateTime(),
-        );
-        Logger.success("Loaded playlist from cache");
-      } else {
-        state = const PlaylistState(isLoading: false);
-        Logger.info("No cached playlist available");
-      }
-    } on Exception catch (e) {
-      Logger.error("Error loading from cache: $e");
+    final cachedChannels = await PlaylistStorage.loadPlaylist();
+    if (cachedChannels != null) {
+      state = PlaylistState(
+        channels: cachedChannels,
+        isLoading: false,
+        error: null,
+        isFromCache: true,
+        lastUpdateTime: PlaylistStorage.getLastUpdateTime(),
+      );
+      Logger.success("Loaded playlist from cache");
+    } else {
       state = const PlaylistState(isLoading: false);
+      Logger.info("No cached playlist available");
     }
-  }
-
-  /// Load playlist in chunks to prevent UI blocking
-  Future<List<Channel>?> _loadPlaylistInChunks() async {
-    final cachedData = await PlaylistStorage.loadPlaylistData();
-    if (cachedData == null) return null;
-
-    final channels = <Channel>[];
-    const chunkSize = 1000;
-
-    for (var i = 0; i < cachedData.length; i += chunkSize) {
-      final end = (i + chunkSize < cachedData.length)
-          ? i + chunkSize
-          : cachedData.length;
-
-      // Process chunk
-      for (var j = i; j < end; j++) {
-        final map = cachedData[j] as Map<dynamic, dynamic>;
-        channels.add(
-          Channel(
-            name: map["name"] as String,
-            url: map["url"] as String,
-            tvgId: map["tvgId"] as String?,
-            tvgName: map["tvgName"] as String?,
-            tvgLogo: map["tvgLogo"] as String?,
-            groupTitle: map["groupTitle"] as String?,
-          ),
-        );
-      }
-
-      // Yield to UI thread after each chunk
-      await Future.delayed(Duration.zero);
-    }
-
-    return channels;
   }
 
   /// Parse playlist in background isolate
   static List<Channel> _parsePlaylistInBackground(String body) {
     return M3uParser.parse(body);
-  }
-
-  /// Categorize channels in chunks to prevent UI blocking
-  Future<List<Channel>> _categorizeInChunks(List<Channel> channels) async {
-    final categorized = <Channel>[];
-    const chunkSize = 1000;
-
-    for (var i = 0; i < channels.length; i += chunkSize) {
-      final end = (i + chunkSize < channels.length)
-          ? i + chunkSize
-          : channels.length;
-
-      final chunk = channels.sublist(i, end);
-      categorized.addAll(ChannelCategorizer.categorize(chunk));
-
-      // Yield to UI thread after each chunk
-      await Future.delayed(Duration.zero);
-    }
-
-    return categorized;
   }
 
   /// Fetches and parses the M3U playlist from the given URL
@@ -188,9 +126,9 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
             "${parseDuration.inMilliseconds % 1000}s",
           );
 
-          // Categorize channels in chunks to keep UI responsive
+          // Categorize channels
           Logger.info("Categorizing channels...");
-          final categorizedChannels = await _categorizeInChunks(channels);
+          var categorizedChannels = ChannelCategorizer.categorize(channels);
 
           // Analyze categories
           final categoryStats = ChannelCategorizer.analyzeCategories(
@@ -202,19 +140,22 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
             "(${categoryStats['largestCategoryCount']} channels)",
           );
 
-          // Save to local storage
-          Logger.info("Saving playlist to local storage...");
-          await PlaylistStorage.savePlaylist(
-            categorizedChannels,
-            url,
-          );
-
+          // Update state immediately so UI is responsive
           state = PlaylistState(
             channels: categorizedChannels,
             isLoading: false,
             error: null,
             isFromCache: false,
             lastUpdateTime: DateTime.now(),
+          );
+
+          // Save to local storage in background (fire and forget)
+          Logger.info("Saving playlist to local storage...");
+          unawaited(
+            PlaylistStorage.savePlaylist(
+              categorizedChannels,
+              url,
+            ),
           );
         } else {
           final errorMsg =
