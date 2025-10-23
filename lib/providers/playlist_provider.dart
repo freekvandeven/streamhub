@@ -1,22 +1,22 @@
-import 'dart:io';
-import 'dart:async';
-import 'package:http/http.dart' as http;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/channel.dart';
-import '../services/m3u_parser.dart';
-import '../utils/logger.dart';
+import "dart:async";
+import "dart:io";
+
+import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:http/http.dart" as http;
+import "package:iptv_app/models/channel.dart";
+import "package:iptv_app/services/m3u_parser.dart";
+import "package:iptv_app/utils/logger.dart";
 
 /// State for playlist loading
 class PlaylistState {
-  final List<Channel> channels;
-  final bool isLoading;
-  final String? error;
-
   const PlaylistState({
     this.channels = const [],
     this.isLoading = false,
     this.error,
   });
+  final List<Channel> channels;
+  final bool isLoading;
+  final String? error;
 
   PlaylistState copyWith({
     List<Channel>? channels,
@@ -40,7 +40,7 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      Logger.info('Fetching playlist from: $url');
+      Logger.info("Fetching playlist from: $url");
 
       // Create HTTP client with custom settings
       final client = http.Client();
@@ -51,18 +51,18 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
             .timeout(
               const Duration(seconds: 300),
               onTimeout: () {
-                throw TimeoutException('Request timed out after 30 seconds');
+                throw TimeoutException("Request timed out after 30 seconds");
               },
             );
 
-        Logger.network('Response status: ${response.statusCode}');
-        Logger.data('Response headers: ${response.headers}');
-        Logger.data('Response length: ${response.body.length} bytes');
+        Logger.network("Response status: ${response.statusCode}");
+        Logger.data("Response headers: ${response.headers}");
+        Logger.data("Response length: ${response.body.length} bytes");
 
         if (response.statusCode == 200) {
-          Logger.success('Successfully fetched playlist');
+          Logger.success("Successfully fetched playlist");
           final channels = M3uParser.parse(response.body);
-          Logger.success('Parsed ${channels.length} channels');
+          Logger.success("Parsed ${channels.length} channels");
 
           state = PlaylistState(
             channels: channels,
@@ -71,11 +71,13 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
           );
         } else {
           final errorMsg =
-              'HTTP ${response.statusCode}: ${response.reasonPhrase}';
-          Logger.error('Failed: $errorMsg');
-          Logger.data(
-            'Response body preview: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}',
-          );
+              "HTTP ${response.statusCode}: ${response.reasonPhrase}";
+          Logger.error("Failed: $errorMsg");
+          final previewLength = response.body.length > 200
+              ? 200
+              : response.body.length;
+          final preview = response.body.substring(0, previewLength);
+          Logger.data("Response body preview: $preview");
 
           state = PlaylistState(
             channels: [],
@@ -87,32 +89,57 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
         client.close();
       }
     } on TimeoutException catch (e) {
-      final errorMsg = 'Connection timeout - server took too long to respond';
-      Logger.error('Timeout: $e');
-      state = PlaylistState(channels: [], isLoading: false, error: errorMsg);
+      const errorMsg = "Connection timeout - server took too long to respond";
+      Logger.error("Timeout: $e");
+      state = const PlaylistState(
+        channels: [],
+        isLoading: false,
+        error: errorMsg,
+      );
     } on SocketException catch (e) {
       final errorMsg =
-          'Network error: ${e.message}. Check your internet connection.';
-      Logger.error('Socket error: $e');
-      state = PlaylistState(channels: [], isLoading: false, error: errorMsg);
+          "Network error: ${e.message}. Check your internet connection.";
+      Logger.error("Socket error: $e");
+      state = PlaylistState(
+        channels: [],
+        isLoading: false,
+        error: errorMsg,
+      );
     } on HandshakeException catch (e) {
-      final errorMsg =
-          'SSL/TLS error: Unable to establish secure connection. The server may have an invalid certificate.';
-      Logger.error('SSL error: $e');
-      state = PlaylistState(channels: [], isLoading: false, error: errorMsg);
+      const errorMsg =
+          "SSL/TLS error: Unable to establish secure connection. "
+          "The server may have an invalid certificate.";
+      Logger.error("SSL error: $e");
+      state = const PlaylistState(
+        channels: [],
+        isLoading: false,
+        error: errorMsg,
+      );
     } on HttpException catch (e) {
-      final errorMsg = 'HTTP error: ${e.message}';
-      Logger.error('HTTP error: $e');
-      state = PlaylistState(channels: [], isLoading: false, error: errorMsg);
+      final errorMsg = "HTTP error: ${e.message}";
+      Logger.error("HTTP error: $e");
+      state = PlaylistState(
+        channels: [],
+        isLoading: false,
+        error: errorMsg,
+      );
     } on FormatException catch (e) {
-      final errorMsg = 'Invalid URL format: ${e.message}';
-      Logger.error('Format error: $e');
-      state = PlaylistState(channels: [], isLoading: false, error: errorMsg);
-    } catch (e, stackTrace) {
-      final errorMsg = 'Unexpected error: ${e.toString()}';
-      Logger.error('Unexpected error: $e');
-      Logger.error('Stack trace: $stackTrace');
-      state = PlaylistState(channels: [], isLoading: false, error: errorMsg);
+      final errorMsg = "Invalid URL format: ${e.message}";
+      Logger.error("Format error: $e");
+      state = PlaylistState(
+        channels: [],
+        isLoading: false,
+        error: errorMsg,
+      );
+    } on Exception catch (e, stackTrace) {
+      final errorMsg = "Unexpected error: $e";
+      Logger.error("Unexpected error: $e");
+      Logger.error("Stack trace: $stackTrace");
+      state = PlaylistState(
+        channels: [],
+        isLoading: false,
+        error: errorMsg,
+      );
     }
   }
 

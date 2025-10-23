@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import '../providers/playlist_provider.dart';
+import "package:flutter/material.dart";
+import "package:flutter_hooks/flutter_hooks.dart";
+import "package:go_router/go_router.dart";
+import "package:hooks_riverpod/hooks_riverpod.dart";
+import "package:iptv_app/models/channel.dart";
+import "package:iptv_app/providers/playlist_provider.dart";
 
 class ChannelsScreen extends HookConsumerWidget {
   const ChannelsScreen({super.key});
@@ -10,7 +11,7 @@ class ChannelsScreen extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final playlistState = ref.watch(playlistProvider);
-    final searchQuery = useState('');
+    final searchQuery = useState("");
 
     // Filter channels based on search query
     final filteredChannels = useMemoized(() {
@@ -26,9 +27,9 @@ class ChannelsScreen extends HookConsumerWidget {
 
     // Group channels by category
     final groupedChannels = useMemoized(() {
-      final Map<String, List<dynamic>> groups = {};
+      final groups = <String, List<Channel>>{};
       for (final channel in filteredChannels) {
-        final group = channel.groupTitle ?? 'Uncategorized';
+        final group = channel.groupTitle ?? "Uncategorized";
         groups.putIfAbsent(group, () => []);
         groups[group]!.add(channel);
       }
@@ -37,11 +38,11 @@ class ChannelsScreen extends HookConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Channels'),
+        title: const Text("Channels"),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/'),
+          onPressed: () => context.go("/"),
         ),
       ),
       body: Column(
@@ -50,7 +51,7 @@ class ChannelsScreen extends HookConsumerWidget {
             padding: const EdgeInsets.all(16.0),
             child: TextField(
               decoration: const InputDecoration(
-                hintText: 'Search channels...',
+                hintText: "Search channels...",
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(),
               ),
@@ -59,7 +60,7 @@ class ChannelsScreen extends HookConsumerWidget {
           ),
           Expanded(
             child: playlistState.channels.isEmpty
-                ? const Center(child: Text('No channels loaded'))
+                ? const Center(child: Text("No channels loaded"))
                 : ListView.builder(
                     itemCount: groupedChannels.length,
                     itemBuilder: (context, index) {
@@ -74,9 +75,9 @@ class ChannelsScreen extends HookConsumerWidget {
                             fontSize: 16,
                           ),
                         ),
-                        subtitle: Text('${channels.length} channels'),
+                        subtitle: Text("${channels.length} channels"),
                         initiallyExpanded: groupedChannels.length <= 3,
-                        children: channels.map((channel) {
+                        children: channels.map<Widget>((channel) {
                           return ListTile(
                             leading: channel.tvgLogo != null
                                 ? Image.network(
@@ -101,10 +102,10 @@ class ChannelsScreen extends HookConsumerWidget {
                             ),
                             trailing: const Icon(Icons.play_circle_outline),
                             onTap: () {
-                              // TODO: Implement video playback
+                              // TODO(video-playback): Implement video playback
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('Playing: ${channel.name}'),
+                                  content: Text("Playing: ${channel.name}"),
                                   duration: const Duration(seconds: 2),
                                 ),
                               );

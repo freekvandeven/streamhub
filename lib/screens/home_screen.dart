@@ -1,8 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import '../providers/playlist_provider.dart';
+import "package:flutter/material.dart";
+import "package:flutter_hooks/flutter_hooks.dart";
+import "package:go_router/go_router.dart";
+import "package:hooks_riverpod/hooks_riverpod.dart";
+import "package:iptv_app/providers/playlist_provider.dart";
 
 class HomeScreen extends HookConsumerWidget {
   const HomeScreen({super.key});
@@ -14,7 +14,7 @@ class HomeScreen extends HookConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('IPTV Playlist Loader'),
+        title: const Text("IPTV Playlist Loader"),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: Padding(
@@ -29,7 +29,7 @@ class HomeScreen extends HookConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const Text(
-                      'Enter Playlist URL',
+                      "Enter Playlist URL",
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -40,9 +40,9 @@ class HomeScreen extends HookConsumerWidget {
                       controller: urlController,
                       decoration: const InputDecoration(
                         hintText:
-                            'http://odm391.xyz/get.php?username=...&password=...',
+                            "http://odm391.xyz/get.php?username=...&password=...",
                         border: OutlineInputBorder(),
-                        labelText: 'M3U Playlist URL',
+                        labelText: "M3U Playlist URL",
                       ),
                       maxLines: 3,
                     ),
@@ -50,10 +50,10 @@ class HomeScreen extends HookConsumerWidget {
                     ElevatedButton.icon(
                       onPressed: playlistState.isLoading
                           ? null
-                          : () {
+                          : () async {
                               final url = urlController.text.trim();
                               if (url.isNotEmpty) {
-                                ref
+                                await ref
                                     .read(playlistProvider.notifier)
                                     .fetchPlaylist(url);
                               }
@@ -67,8 +67,8 @@ class HomeScreen extends HookConsumerWidget {
                           : const Icon(Icons.download),
                       label: Text(
                         playlistState.isLoading
-                            ? 'Loading...'
-                            : 'Load Playlist',
+                            ? "Loading..."
+                            : "Load Playlist",
                       ),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -106,16 +106,16 @@ class HomeScreen extends HookConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '${playlistState.channels.length} channels loaded',
+                        "${playlistState.channels.length} channels loaded",
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       ElevatedButton.icon(
-                        onPressed: () => context.go('/channels'),
+                        onPressed: () => context.go("/channels"),
                         icon: const Icon(Icons.list),
-                        label: const Text('View Channels'),
+                        label: const Text("View Channels"),
                       ),
                     ],
                   ),

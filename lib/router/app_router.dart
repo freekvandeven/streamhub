@@ -1,13 +1,13 @@
-import 'package:go_router/go_router.dart';
-import '../screens/home_screen.dart';
-import '../screens/channels_screen.dart';
+import "package:go_router/go_router.dart";
+import "package:iptv_app/screens/channels_screen.dart";
+import "package:iptv_app/screens/home_screen.dart";
 
 final router = GoRouter(
-  initialLocation: '/',
+  initialLocation: "/",
   routes: [
-    GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
+    GoRoute(path: "/", builder: (context, state) => const HomeScreen()),
     GoRoute(
-      path: '/channels',
+      path: "/channels",
       builder: (context, state) => const ChannelsScreen(),
     ),
   ],
