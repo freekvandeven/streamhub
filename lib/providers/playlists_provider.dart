@@ -4,10 +4,10 @@ import "dart:io";
 import "package:channel_categorizer/channel_categorizer.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
-import "package:http/http.dart" as http;
 import "package:streamhub/models/channel.dart";
 import "package:streamhub/models/playlist.dart";
 import "package:streamhub/services/channel_categorizer.dart";
+import "package:streamhub/services/http_service.dart";
 import "package:streamhub/services/m3u_parser.dart";
 import "package:streamhub/services/playlist_storage.dart";
 import "package:streamhub/utils/logger.dart";
@@ -95,96 +95,77 @@ class PlaylistsNotifier extends StateNotifier<PlaylistsState> {
 
       final fetchStartTime = DateTime.now();
 
-      final client = http.Client();
-
-      try {
-        final response = await client
-            .get(Uri.parse(url))
-            .timeout(
-              const Duration(seconds: 300),
-              onTimeout: () {
-                throw TimeoutException("Request timed out after 300 seconds");
-              },
-            );
-
-        final fetchDuration = DateTime.now().difference(fetchStartTime);
-
-        Logger.network("Response status: ${response.statusCode}");
-        Logger.data(
-          "Response size: ${_formatBytes(response.body.length)} "
-          "(${response.body.length} bytes)",
-        );
-        Logger.success(
-          "Fetch completed in ${fetchDuration.inSeconds}."
-          "${fetchDuration.inMilliseconds % 1000}s",
-        );
-
-        if (response.statusCode == 200) {
-          Logger.info("Parsing and categorizing M3U playlist...");
-          final parseStartTime = DateTime.now();
-
-          // Parse and categorize in background
-          final result = await compute(
-            _parseAndCategorizePlaylistInBackground,
-            response.body,
+      final body = await HttpService.fetchPlaylist(url)
+          .timeout(
+            const Duration(seconds: 300),
+            onTimeout: () {
+              throw TimeoutException("Request timed out after 300 seconds");
+            },
           );
 
-          final categorizedChannels = (result[0] as List<dynamic>)
-              .cast<Channel>();
-          final categoryTree = result[1] as CategoryNode;
+      final fetchDuration = DateTime.now().difference(fetchStartTime);
 
-          final parseDuration = DateTime.now().difference(parseStartTime);
+      Logger.data(
+        "Response size: ${_formatBytes(body.length)} "
+        "(${body.length} bytes)",
+      );
+      Logger.success(
+        "Fetch completed in ${fetchDuration.inSeconds}."
+        "${fetchDuration.inMilliseconds % 1000}s",
+      );
 
-          Logger.success(
-            "Parsed and categorized ${categorizedChannels.length} channels in "
-            "${parseDuration.inSeconds}."
-            "${parseDuration.inMilliseconds % 1000}s",
-          );
+      Logger.info("Parsing and categorizing M3U playlist...");
+      final parseStartTime = DateTime.now();
 
-          // Create or update playlist
-          final playlistId =
-              existingPlaylist?.id ??
-              DateTime.now().millisecondsSinceEpoch.toString();
+      // Parse and categorize in background
+      final result = await compute(
+        _parseAndCategorizePlaylistInBackground,
+        body,
+      );
 
-          final playlist = Playlist(
-            id: playlistId,
-            name: name,
-            url: url,
-            channels: categorizedChannels,
-            lastUpdate: DateTime.now(),
-          );
+      final categorizedChannels = (result[0] as List<dynamic>)
+          .cast<Channel>();
+      final categoryTree = result[1] as CategoryNode;
 
-          // Save playlist
-          await PlaylistStorage.savePlaylist(playlist);
+      final parseDuration = DateTime.now().difference(parseStartTime);
 
-          // Save categorized data
-          const categorizer = DefaultChannelCategorizer();
-          unawaited(
-            PlaylistStorage.saveCategorizedData(
-              categoryTree: categoryTree,
-              categorizerId: categorizer.categorizerId,
-              categorizerVersion: categorizer.version,
-              totalChannels: categorizedChannels.length,
-            ),
-          );
+      Logger.success(
+        "Parsed and categorized ${categorizedChannels.length} channels in "
+        "${parseDuration.inSeconds}."
+        "${parseDuration.inMilliseconds % 1000}s",
+      );
 
-          // Reload playlists
-          await loadPlaylists();
+      // Create or update playlist
+      final playlistId =
+          existingPlaylist?.id ??
+          DateTime.now().millisecondsSinceEpoch.toString();
 
-          state = state.copyWith(isLoading: false);
-        } else {
-          final errorMsg =
-              "HTTP ${response.statusCode}: ${response.reasonPhrase}";
-          Logger.error("Failed: $errorMsg");
+      final playlist = Playlist(
+        id: playlistId,
+        name: name,
+        url: url,
+        channels: categorizedChannels,
+        lastUpdate: DateTime.now(),
+      );
 
-          state = state.copyWith(
-            isLoading: false,
-            error: errorMsg,
-          );
-        }
-      } finally {
-        client.close();
-      }
+      // Save playlist
+      await PlaylistStorage.savePlaylist(playlist);
+
+      // Save categorized data
+      const categorizer = DefaultChannelCategorizer();
+      unawaited(
+        PlaylistStorage.saveCategorizedData(
+          categoryTree: categoryTree,
+          categorizerId: categorizer.categorizerId,
+          categorizerVersion: categorizer.version,
+          totalChannels: categorizedChannels.length,
+        ),
+      );
+
+      // Reload playlists
+      await loadPlaylists();
+
+      state = state.copyWith(isLoading: false);
     } on TimeoutException catch (e) {
       const errorMsg = "Connection timeout - server took too long to respond";
       Logger.error("Timeout: $e");

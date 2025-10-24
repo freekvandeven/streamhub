@@ -47,6 +47,17 @@ app.*.map.json
 # Environment variables - never commit these files
 *dotenv*
 
+# Personal documentation and guides (local only)
+SETUP.md
+SIMPLIFIED_SETUP.md
+CLEANUP_COMPLETE.md
+FIREBASE_SETUP_COMPLETE.md
+FIREBASE_ANDROID_SETUP.md
+FIREBASE_DEPLOYMENT.md
+ENVIRONMENT.md
+HOOKS.md
+QUICKSTART.md
+
 # Icon generation helper scripts
 generate_icons.dart
 generate_icons.py

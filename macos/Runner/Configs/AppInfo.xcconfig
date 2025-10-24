@@ -4,11 +4,15 @@
 // future. If not, the values below would default to using the project name when this becomes a
 // 'flutter create' template.
 
+// Provided from Flutter tool.
+#include? "Pods-Runner.debug.xcconfig"
+#include "ephemeral/Flutter-Generated.xcconfig"
+
 // The application's name. By default this is also the title of the Flutter window.
 PRODUCT_NAME = streamhub
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.iptvApp
+PRODUCT_BUNDLE_IDENTIFIER = com.streamhub.app
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2025 com.example. All rights reserved.

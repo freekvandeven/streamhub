@@ -1,5 +1,5 @@
 name: channel_categorizer
-description: A pluggable channel categorization system for IPTV playlists
+description: A pluggable channel categorization system for M3U playlists
 version: 1.0.0
 publish_to: none
 
