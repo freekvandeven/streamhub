@@ -3,27 +3,37 @@ import "package:flutter_hooks/flutter_hooks.dart";
 import "package:go_router/go_router.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
 import "package:streamhub/models/channel.dart";
-import "package:streamhub/providers/playlist_provider.dart";
+import "package:streamhub/providers/playlists_provider.dart";
 
 class ChannelsScreen extends HookConsumerWidget {
   const ChannelsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final playlistState = ref.watch(playlistProvider);
+    final playlistsState = ref.watch(playlistsProvider);
     final searchQuery = useState("");
+
+    // Get active playlist channels
+    final channels = playlistsState.playlists.isEmpty
+        ? <Channel>[]
+        : playlistsState.playlists
+              .firstWhere(
+                (p) => p.id == playlistsState.activePlaylistId,
+                orElse: () => playlistsState.playlists.first,
+              )
+              .channels;
 
     // Filter channels based on search query
     final filteredChannels = useMemoized(() {
       if (searchQuery.value.isEmpty) {
-        return playlistState.channels;
+        return channels;
       }
-      return playlistState.channels.where((channel) {
+      return channels.where((channel) {
         final query = searchQuery.value.toLowerCase();
         return channel.name.toLowerCase().contains(query) ||
             (channel.groupTitle?.toLowerCase().contains(query) ?? false);
       }).toList();
-    }, [playlistState.channels, searchQuery.value]);
+    }, [channels, searchQuery.value]);
 
     // Group channels by category
     final groupedChannels = useMemoized(() {
@@ -59,7 +69,7 @@ class ChannelsScreen extends HookConsumerWidget {
             ),
           ),
           Expanded(
-            child: playlistState.channels.isEmpty
+            child: channels.isEmpty
                 ? const Center(child: Text("No channels loaded"))
                 : ListView.builder(
                     itemCount: groupedChannels.length,

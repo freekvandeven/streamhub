@@ -31,13 +31,13 @@ void main() {
       ),
     );
 
-    // Verify that we're on the home screen
-    expect(find.text("Playlist Loader"), findsOneWidget);
-    expect(find.text("Enter Playlist URL"), findsOneWidget);
-    expect(find.text("Load Playlist"), findsOneWidget);
+    // Verify that we're on the home screen with new title
+    expect(find.text("StreamHub"), findsOneWidget);
+    expect(find.text("Enter Playlist Details"), findsOneWidget);
+    expect(find.text("Add Playlist"), findsOneWidget);
 
-    // Verify the URL input field exists
-    expect(find.byType(TextField), findsOneWidget);
+    // Verify both input fields exist (name and URL)
+    expect(find.byType(TextField), findsNWidgets(2));
   });
 
   testWidgets("Can enter URL in text field", (WidgetTester tester) async {
@@ -47,26 +47,26 @@ void main() {
       ),
     );
 
-    // Find the text field and enter a URL
-    final textField = find.byType(TextField);
-    expect(textField, findsOneWidget);
+    // Find the URL text field specifically by label
+    final urlField = find.widgetWithText(TextField, "M3U Playlist URL");
+    expect(urlField, findsOneWidget);
 
-    await tester.enterText(textField, "http://example.com/playlist.m3u");
+    await tester.enterText(urlField, "http://example.com/playlist.m3u");
     await tester.pump();
 
     // Verify the text was entered
     expect(find.text("http://example.com/playlist.m3u"), findsOneWidget);
   });
 
-  testWidgets("Load Playlist button is present", (WidgetTester tester) async {
+  testWidgets("Add Playlist button is present", (WidgetTester tester) async {
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(home: HomeScreen()),
       ),
     );
 
-    // Find the load playlist button by text
-    final loadButton = find.text("Load Playlist");
-    expect(loadButton, findsOneWidget);
+    // Find the add playlist button by text
+    final addButton = find.text("Add Playlist");
+    expect(addButton, findsOneWidget);
   });
 }

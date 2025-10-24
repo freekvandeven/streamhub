@@ -1,14 +1,13 @@
 import "package:channel_categorizer/channel_categorizer.dart";
 import "package:hive_flutter/hive_flutter.dart";
-import "package:streamhub/models/channel.dart";
+import "package:streamhub/models/playlist.dart";
 import "package:streamhub/utils/logger.dart";
 
 /// Service for local storage of playlists using Hive
 abstract final class PlaylistStorage {
   static const String _boxName = "playlists";
-  static const String _channelsKey = "cached_channels";
-  static const String _lastUpdateKey = "last_update";
-  static const String _playlistUrlKey = "playlist_url";
+  static const String _playlistsKey = "all_playlists";
+  static const String _activePlaylistIdKey = "active_playlist_id";
   static const String _categorizedDataKey = "categorized_data";
 
   /// Initializes Hive storage (lightweight - just initializes Hive)
@@ -25,150 +24,144 @@ abstract final class PlaylistStorage {
     return Hive.openBox<dynamic>(_boxName);
   }
 
-  /// Saves playlist to local storage
-  static Future<void> savePlaylist(
-    List<Channel> channels,
-    String playlistUrl,
-  ) async {
+  /// Loads all playlists
+  static Future<List<Playlist>> loadAllPlaylists() async {
     try {
       final box = await _getBox();
-      final startTime = DateTime.now();
+      final playlistsJson = box.get(_playlistsKey) as List<dynamic>?;
+      if (playlistsJson == null || playlistsJson.isEmpty) {
+        return [];
+      }
 
-      // Convert channels to JSON
-      final channelsJson = channels
-          .map(
-            (c) => {
-              "name": c.name,
-              "url": c.url,
-              "tvgId": c.tvgId,
-              "tvgName": c.tvgName,
-              "tvgLogo": c.tvgLogo,
-              "groupTitle": c.groupTitle,
-            },
-          )
+      final playlists = playlistsJson
+          .map((json) => Playlist.fromJson(json as Map<String, dynamic>))
           .toList();
 
-      await box.put(_channelsKey, channelsJson);
-      await box.put(_lastUpdateKey, DateTime.now().toIso8601String());
-      await box.put(_playlistUrlKey, playlistUrl);
+      Logger.info("Loaded ${playlists.length} playlists from storage");
+      return playlists;
+    } on Exception catch (e) {
+      Logger.error("Failed to load playlists: $e");
+      return [];
+    }
+  }
 
-      final duration = DateTime.now().difference(startTime);
+  /// Saves a playlist (adds new or updates existing)
+  static Future<void> savePlaylist(Playlist playlist) async {
+    try {
+      final box = await _getBox();
+      final playlists = await loadAllPlaylists();
+
+      // Check if playlist with same ID exists
+      final existingIndex = playlists.indexWhere((p) => p.id == playlist.id);
+
+      if (existingIndex >= 0) {
+        // Update existing
+        playlists[existingIndex] = playlist;
+        Logger.info("Updated playlist: ${playlist.name}");
+      } else {
+        // Add new
+        playlists.add(playlist);
+        Logger.info("Added new playlist: ${playlist.name}");
+      }
+
+      // Save all playlists
+      final playlistsJson = playlists.map((p) => p.toJson()).toList();
+      await box.put(_playlistsKey, playlistsJson);
+
+      // Set as active if it's the only one or newly added
+      if (playlists.length == 1 || existingIndex < 0) {
+        await setActivePlaylistId(playlist.id);
+      }
+
       Logger.success(
-        "Saved ${channels.length} channels to local storage in "
-        "${duration.inMilliseconds}ms",
+        "Saved playlist '${playlist.name}' with ${playlist.channels.length} "
+        "channels",
       );
     } on Exception catch (e) {
       Logger.error("Failed to save playlist: $e");
     }
   }
 
-  /// Loads playlist from local storage
-  static Future<List<Channel>?> loadPlaylist() async {
+  /// Removes a playlist by ID
+  static Future<void> removePlaylist(String playlistId) async {
     try {
       final box = await _getBox();
-      final startTime = DateTime.now();
+      final playlists = await loadAllPlaylists();
 
-      final channelsJson = box.get(_channelsKey) as List<dynamic>?;
-      if (channelsJson == null) {
-        Logger.info("No cached playlist found");
-        return null;
+      playlists.removeWhere((p) => p.id == playlistId);
+
+      final playlistsJson = playlists.map((p) => p.toJson()).toList();
+      await box.put(_playlistsKey, playlistsJson);
+
+      // If removed playlist was active, set first playlist as active
+      final activeId = await getActivePlaylistId();
+      if (activeId == playlistId && playlists.isNotEmpty) {
+        await setActivePlaylistId(playlists.first.id);
+      } else if (playlists.isEmpty) {
+        await box.delete(_activePlaylistIdKey);
       }
 
-      final channels = channelsJson.map<Channel>((json) {
-        final map = json as Map<dynamic, dynamic>;
-        return Channel(
-          name: map["name"] as String,
-          url: map["url"] as String,
-          tvgId: map["tvgId"] as String?,
-          tvgName: map["tvgName"] as String?,
-          tvgLogo: map["tvgLogo"] as String?,
-          groupTitle: map["groupTitle"] as String?,
-        );
-      }).toList();
-
-      final duration = DateTime.now().difference(startTime);
-      Logger.success(
-        "Loaded ${channels.length} channels from cache in "
-        "${duration.inMilliseconds}ms",
-      );
-
-      return channels;
+      Logger.success("Removed playlist");
     } on Exception catch (e) {
-      Logger.error("Failed to load playlist: $e");
-      return null;
+      Logger.error("Failed to remove playlist: $e");
     }
   }
 
-  /// Gets the last update time of the cached playlist
-  static Future<DateTime?> getLastUpdateTime() async {
+  /// Gets the active playlist ID
+  static Future<String?> getActivePlaylistId() async {
     try {
-      if (!Hive.isBoxOpen(_boxName)) return null;
-      final box = Hive.box<dynamic>(_boxName);
-      final lastUpdate = box.get(_lastUpdateKey) as String?;
-      if (lastUpdate == null) return null;
-      return DateTime.parse(lastUpdate);
+      final box = await _getBox();
+      return box.get(_activePlaylistIdKey) as String?;
     } on Exception catch (e) {
-      Logger.error("Failed to get last update time: $e");
+      Logger.error("Failed to get active playlist ID: $e");
       return null;
     }
   }
 
-  /// Gets the URL of the cached playlist
-  static Future<String?> getCachedPlaylistUrl() async {
+  /// Sets the active playlist ID
+  static Future<void> setActivePlaylistId(String playlistId) async {
     try {
-      if (!Hive.isBoxOpen(_boxName)) return null;
-      final box = Hive.box<dynamic>(_boxName);
-      return box.get(_playlistUrlKey) as String?;
+      final box = await _getBox();
+      await box.put(_activePlaylistIdKey, playlistId);
     } on Exception catch (e) {
-      Logger.error("Failed to get cached URL: $e");
+      Logger.error("Failed to set active playlist ID: $e");
+    }
+  }
+
+  /// Gets the active playlist
+  static Future<Playlist?> getActivePlaylist() async {
+    try {
+      final activeId = await getActivePlaylistId();
+      if (activeId == null) return null;
+
+      final playlists = await loadAllPlaylists();
+      return playlists.where((p) => p.id == activeId).firstOrNull;
+    } on Exception catch (e) {
+      Logger.error("Failed to get active playlist: $e");
       return null;
     }
   }
 
-  /// Checks if there is a cached playlist
-  static Future<bool> hasCachedPlaylist() async {
-    if (!Hive.isBoxOpen(_boxName)) return false;
-    final box = Hive.box<dynamic>(_boxName);
-    return box.containsKey(_channelsKey);
+  /// Finds a playlist by URL
+  static Future<Playlist?> findPlaylistByUrl(String url) async {
+    try {
+      final playlists = await loadAllPlaylists();
+      return playlists.where((p) => p.url == url).firstOrNull;
+    } on Exception catch (e) {
+      Logger.error("Failed to find playlist by URL: $e");
+      return null;
+    }
   }
 
-  /// Clears the cached playlist
-  static Future<void> clearCache() async {
+  /// Clears all playlists
+  static Future<void> clearAllPlaylists() async {
     try {
       final box = await _getBox();
       await box.clear();
-      Logger.success("Cache cleared");
+      Logger.success("All playlists cleared");
     } on Exception catch (e) {
-      Logger.error("Failed to clear cache: $e");
+      Logger.error("Failed to clear playlists: $e");
     }
-  }
-
-  /// Gets cache statistics
-  static Future<Map<String, dynamic>> getCacheStats() async {
-    if (!Hive.isBoxOpen(_boxName)) {
-      return {
-        "hasCachedData": false,
-        "lastUpdate": null,
-        "playlistUrl": null,
-        "channelCount": 0,
-        "cacheAge": null,
-      };
-    }
-
-    final box = Hive.box<dynamic>(_boxName);
-    final lastUpdate = await getLastUpdateTime();
-    final playlistUrl = await getCachedPlaylistUrl();
-    final channelsJson = box.get(_channelsKey) as List<dynamic>?;
-
-    return {
-      "hasCachedData": await hasCachedPlaylist(),
-      "lastUpdate": lastUpdate?.toIso8601String(),
-      "playlistUrl": playlistUrl,
-      "channelCount": channelsJson?.length ?? 0,
-      "cacheAge": lastUpdate != null
-          ? DateTime.now().difference(lastUpdate).inHours
-          : null,
-    };
   }
 
   // ==========================================================================

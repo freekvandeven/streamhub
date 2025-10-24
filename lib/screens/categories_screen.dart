@@ -3,7 +3,7 @@ import "package:flutter_hooks/flutter_hooks.dart";
 import "package:go_router/go_router.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
 import "package:streamhub/models/channel.dart";
-import "package:streamhub/providers/playlist_provider.dart";
+import "package:streamhub/providers/playlists_provider.dart";
 
 /// Screen showing categories/groups of channels
 class CategoriesScreen extends HookConsumerWidget {
@@ -11,13 +11,23 @@ class CategoriesScreen extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final playlistState = ref.watch(playlistProvider);
+    final playlistsState = ref.watch(playlistsProvider);
     final searchQuery = useState("");
+
+    // Get active playlist
+    final activePlaylist = playlistsState.playlists.firstWhere(
+      (p) => p.id == playlistsState.activePlaylistId,
+      orElse: () => playlistsState.playlists.isNotEmpty
+          ? playlistsState.playlists.first
+          : throw Exception("No active playlist"),
+    );
+
+    final channels = activePlaylist.channels;
 
     // Group channels by category
     final categoryData = useMemoized(() {
       final groups = <String, List<Channel>>{};
-      for (final channel in playlistState.channels) {
+      for (final channel in channels) {
         final group = channel.groupTitle ?? "Uncategorized";
         groups.putIfAbsent(group, () => []);
         groups[group]!.add(channel);
@@ -39,7 +49,7 @@ class CategoriesScreen extends HookConsumerWidget {
             );
 
       return categoryList;
-    }, [playlistState.channels]);
+    }, [channels]);
 
     // Filter categories based on search
     final filteredCategories = useMemoized(() {
@@ -78,7 +88,7 @@ class CategoriesScreen extends HookConsumerWidget {
           ),
 
           // Summary stats
-          if (playlistState.channels.isNotEmpty)
+          if (channels.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 16.0,
@@ -99,7 +109,7 @@ class CategoriesScreen extends HookConsumerWidget {
                       ),
                       _buildStat(
                         context,
-                        "${playlistState.channels.length}",
+                        "${channels.length}",
                         "Channels",
                         Icons.tv,
                       ),
@@ -111,7 +121,7 @@ class CategoriesScreen extends HookConsumerWidget {
 
           // Category list
           Expanded(
-            child: playlistState.channels.isEmpty
+            child: channels.isEmpty
                 ? const Center(child: Text("No categories available"))
                 : ListView.builder(
                     itemCount: filteredCategories.length,

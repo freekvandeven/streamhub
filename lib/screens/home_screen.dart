@@ -3,7 +3,7 @@ import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:flutter_hooks/flutter_hooks.dart";
 import "package:go_router/go_router.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
-import "package:streamhub/providers/playlist_provider.dart";
+import "package:streamhub/providers/playlists_provider.dart";
 
 class HomeScreen extends HookConsumerWidget {
   const HomeScreen({super.key});
@@ -12,19 +12,20 @@ class HomeScreen extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final defaultUrl = dotenv.env["PLAYLIST_URL"] ?? "";
     final urlController = useTextEditingController(text: defaultUrl);
-    final playlistState = ref.watch(playlistProvider);
+    final nameController = useTextEditingController();
+    final playlistsState = ref.watch(playlistsProvider);
 
-    // Load from cache on first build
+    // Load playlists on first build
     useEffect(() {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        await ref.read(playlistProvider.notifier).loadFromCache();
+        await ref.read(playlistsProvider.notifier).loadPlaylists();
       });
       return null;
     }, []);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Playlist Loader"),
+        title: const Text("StreamHub"),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: Stack(
@@ -41,10 +42,19 @@ class HomeScreen extends HookConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const Text(
-                          "Enter Playlist URL",
+                          "Enter Playlist Details",
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: nameController,
+                          decoration: const InputDecoration(
+                            hintText: "My IPTV Playlist",
+                            border: OutlineInputBorder(),
+                            labelText: "Playlist Name",
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -60,17 +70,47 @@ class HomeScreen extends HookConsumerWidget {
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton.icon(
-                          onPressed: playlistState.isLoading
+                          onPressed: playlistsState.isLoading
                               ? null
                               : () async {
                                   final url = urlController.text.trim();
-                                  if (url.isNotEmpty) {
-                                    await ref
-                                        .read(playlistProvider.notifier)
-                                        .fetchPlaylist(url);
+                                  final name = nameController.text.trim();
+
+                                  if (url.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text("Please enter a URL"),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  if (name.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          "Please enter a playlist name",
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  await ref
+                                      .read(playlistsProvider.notifier)
+                                      .fetchPlaylist(
+                                        url: url,
+                                        name: name,
+                                      );
+
+                                  // Clear input fields after successful add
+                                  if (!playlistsState.isLoading &&
+                                      playlistsState.error == null) {
+                                    urlController.clear();
+                                    nameController.clear();
                                   }
                                 },
-                          icon: playlistState.isLoading
+                          icon: playlistsState.isLoading
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
@@ -78,11 +118,11 @@ class HomeScreen extends HookConsumerWidget {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : const Icon(Icons.download),
+                              : const Icon(Icons.add),
                           label: Text(
-                            playlistState.isLoading
+                            playlistsState.isLoading
                                 ? "Loading..."
-                                : "Load Playlist",
+                                : "Add Playlist",
                           ),
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -93,7 +133,7 @@ class HomeScreen extends HookConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                if (playlistState.error != null)
+                if (playlistsState.error != null)
                   Card(
                     color: Colors.red.shade50,
                     child: Padding(
@@ -104,7 +144,7 @@ class HomeScreen extends HookConsumerWidget {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              playlistState.error!,
+                              playlistsState.error!,
                               style: const TextStyle(color: Colors.red),
                             ),
                           ),
@@ -112,106 +152,147 @@ class HomeScreen extends HookConsumerWidget {
                       ),
                     ),
                   ),
-                if (playlistState.channels.isNotEmpty) ...[
-                  Card(
-                    color: playlistState.isFromCache
-                        ? Colors.blue.shade50
-                        : Colors.green.shade50,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "${playlistState.channels.length} "
-                                      "channels",
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          playlistState.isFromCache
-                                              ? Icons.storage
-                                              : Icons.cloud_download,
-                                          size: 16,
-                                          color: Colors.grey[600],
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          playlistState.isFromCache
-                                              ? "From cache"
-                                              : "Fresh from URL",
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[600],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    if (playlistState.lastUpdateTime !=
-                                        null) ...[
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        "Updated: ${_formatDateTime(
-                                          playlistState.lastUpdateTime!,
-                                        )}",
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
+                if (playlistsState.playlists.isNotEmpty) ...[
+                  const Text(
+                    "My Playlists",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: playlistsState.playlists.length,
+                      itemBuilder: (context, index) {
+                        final playlist = playlistsState.playlists[index];
+                        final isActive =
+                            playlist.id == playlistsState.activePlaylistId;
+
+                        return Card(
+                          color: isActive ? Colors.blue.shade50 : null,
+                          child: ListTile(
+                            leading: Icon(
+                              Icons.playlist_play,
+                              color: isActive ? Colors.blue : null,
+                            ),
+                            title: Text(
+                              playlist.name,
+                              style: TextStyle(
+                                fontWeight: isActive ? FontWeight.bold : null,
                               ),
-                              if (playlistState.isFromCache)
-                                IconButton(
-                                  onPressed: () async {
-                                    final url = urlController.text.trim();
-                                    if (url.isNotEmpty) {
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("${playlist.channels.length} channels"),
+                                Text(
+                                  "Updated: ${_formatDateTime(
+                                    playlist.lastUpdate,
+                                  )}",
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ],
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (isActive)
+                                  ElevatedButton.icon(
+                                    onPressed: () => context.go("/categories"),
+                                    icon: const Icon(Icons.category, size: 16),
+                                    label: const Text("Browse"),
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.check_circle_outline,
+                                    ),
+                                    onPressed: () async {
                                       await ref
-                                          .read(playlistProvider.notifier)
-                                          .fetchPlaylist(
-                                            url,
-                                            forceRefresh: true,
-                                          );
+                                          .read(playlistsProvider.notifier)
+                                          .setActivePlaylist(playlist.id);
+                                    },
+                                    tooltip: "Set as active",
+                                  ),
+                                IconButton(
+                                  icon: const Icon(Icons.refresh),
+                                  onPressed: () async {
+                                    await ref
+                                        .read(playlistsProvider.notifier)
+                                        .fetchPlaylist(
+                                          url: playlist.url,
+                                          name: playlist.name,
+                                          forceRefresh: true,
+                                        );
+                                  },
+                                  tooltip: "Refresh",
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete),
+                                  onPressed: () async {
+                                    final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: const Text("Delete Playlist"),
+                                        content: Text(
+                                          "Are you sure you want to delete "
+                                          "'${playlist.name}'?",
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.of(
+                                              context,
+                                            ).pop(false),
+                                            child: const Text("Cancel"),
+                                          ),
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(context).pop(true),
+                                            child: const Text("Delete"),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+
+                                    if (confirmed ?? false) {
+                                      await ref
+                                          .read(playlistsProvider.notifier)
+                                          .removePlaylist(playlist.id);
                                     }
                                   },
-                                  icon: const Icon(Icons.refresh),
-                                  tooltip: "Refresh from URL",
+                                  tooltip: "Delete",
                                 ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: () => context.go("/categories"),
-                              icon: const Icon(Icons.category),
-                              label: const Text("Browse Categories"),
+                              ],
                             ),
                           ),
-                        ],
+                        );
+                      },
+                    ),
+                  ),
+                ] else if (!playlistsState.isLoading)
+                  const Expanded(
+                    child: Center(
+                      child: Text(
+                        "No playlists yet. Add one above!",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey,
+                        ),
                       ),
                     ),
                   ),
-                ],
               ],
             ),
           ),
-          // Loading overlay when loading from cache
-          if (playlistState.isLoading && playlistState.channels.isEmpty)
+          // Loading overlay
+          if (playlistsState.isLoading)
             ColoredBox(
               color: Colors.black.withValues(alpha: 0.5),
               child: Center(
@@ -224,7 +305,7 @@ class HomeScreen extends HookConsumerWidget {
                         const CircularProgressIndicator(),
                         const SizedBox(height: 16),
                         Text(
-                          "Loading playlist from cache...",
+                          "Loading playlist...",
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         const SizedBox(height: 8),
