@@ -1,6 +1,6 @@
 {
-    "name": "streamhub",
-    "short_name": "streamhub",
+    "name": "StreamHub",
+    "short_name": "StreamHub",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
