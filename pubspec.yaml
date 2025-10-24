@@ -51,12 +51,26 @@ flutter_native_splash:
 flutter_launcher_icons:
   android: true
   ios: true
-  web:
-    generate: true
-  windows:
-    generate: true
-  macos:
-    generate: true
   image_path: "assets/icon/app_icon.png"
+
+  # Android adaptive icons
   adaptive_icon_background: "#667eea"
   adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+
+  # Web configuration
+  web:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
+    background_color: "#667eea"
+    theme_color: "#667eea"
+
+  # Windows configuration
+  windows:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
+    icon_size: 48
+
+  # macOS configuration
+  macos:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
