@@ -21,7 +21,7 @@ void main() {
     await Hive.deleteFromDisk();
   });
 
-  testWidgets("App loads home screen with URL input", (
+  testWidgets("App loads home screen with categories view", (
     WidgetTester tester,
   ) async {
     // Build home screen directly for testing
@@ -33,40 +33,52 @@ void main() {
 
     // Verify that we're on the home screen with new title
     expect(find.text("StreamHub"), findsOneWidget);
-    expect(find.text("Enter Playlist Details"), findsOneWidget);
-    expect(find.text("Add Playlist"), findsOneWidget);
 
-    // Verify both input fields exist (name and URL)
-    expect(find.byType(TextField), findsNWidgets(2));
+    // Verify settings button exists
+    expect(find.byIcon(Icons.settings), findsOneWidget);
+
+    // Verify search field exists
+    expect(
+      find.widgetWithText(TextField, "Search categories..."),
+      findsOneWidget,
+    );
   });
 
-  testWidgets("Can enter URL in text field", (WidgetTester tester) async {
+  testWidgets(
+    "Shows empty state when no playlists",
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(home: HomeScreen()),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Verify empty state message
+      expect(find.text("No playlists yet"), findsOneWidget);
+      expect(
+        find.text("Add your first playlist in settings"),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets("Can search categories", (WidgetTester tester) async {
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(home: HomeScreen()),
       ),
     );
 
-    // Find the URL text field specifically by label
-    final urlField = find.widgetWithText(TextField, "M3U Playlist URL");
-    expect(urlField, findsOneWidget);
+    // Find the search field
+    final searchField = find.widgetWithText(TextField, "Search categories...");
+    expect(searchField, findsOneWidget);
 
-    await tester.enterText(urlField, "http://example.com/playlist.m3u");
+    await tester.enterText(searchField, "sports");
     await tester.pump();
 
     // Verify the text was entered
-    expect(find.text("http://example.com/playlist.m3u"), findsOneWidget);
-  });
-
-  testWidgets("Add Playlist button is present", (WidgetTester tester) async {
-    await tester.pumpWidget(
-      const ProviderScope(
-        child: MaterialApp(home: HomeScreen()),
-      ),
-    );
-
-    // Find the add playlist button by text
-    final addButton = find.text("Add Playlist");
-    expect(addButton, findsOneWidget);
+    expect(find.text("sports"), findsOneWidget);
   });
 }

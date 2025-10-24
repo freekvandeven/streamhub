@@ -13,7 +13,12 @@ class Playlist {
   factory Playlist.fromJson(Map<String, dynamic> json) {
     final channelsJson = json["channels"] as List<dynamic>;
     final channels = channelsJson.map<Channel>((channelJson) {
-      final map = channelJson as Map<String, dynamic>;
+      // Handle both Map<String, dynamic> and Map<dynamic, dynamic>
+      final map = channelJson is Map<String, dynamic>
+          ? channelJson
+          : (channelJson as Map<dynamic, dynamic>).map(
+              (key, value) => MapEntry(key.toString(), value),
+            );
       return Channel(
         name: map["name"] as String,
         url: map["url"] as String,

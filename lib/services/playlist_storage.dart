@@ -33,9 +33,14 @@ abstract final class PlaylistStorage {
         return [];
       }
 
-      final playlists = playlistsJson
-          .map((json) => Playlist.fromJson(json as Map<String, dynamic>))
-          .toList();
+      final playlists = playlistsJson.map((json) {
+        // Convert Map<dynamic, dynamic> to Map<String, dynamic>
+        final map = json as Map<dynamic, dynamic>;
+        final stringMap = map.map(
+          (key, value) => MapEntry(key.toString(), value),
+        );
+        return Playlist.fromJson(stringMap);
+      }).toList();
 
       Logger.info("Loaded ${playlists.length} playlists from storage");
       return playlists;
