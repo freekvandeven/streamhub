@@ -1,4 +1,4 @@
-import "package:streamhub/models/category_node.dart";
+import "package:channel_categorizer/channel_categorizer.dart";
 import "package:streamhub/models/channel.dart";
 import "package:streamhub/utils/logger.dart";
 

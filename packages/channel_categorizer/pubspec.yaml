@@ -1,0 +1,15 @@
+name: channel_categorizer
+description: A pluggable channel categorization system for IPTV playlists
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: ^3.9.2
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_iconica_analysis:
+    hosted: https://forgejo.internal.iconica.nl/api/packages/internal/pub
+    version: ^7.0.0

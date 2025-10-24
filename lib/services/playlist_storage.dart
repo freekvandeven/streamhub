@@ -1,3 +1,4 @@
+import "package:channel_categorizer/channel_categorizer.dart";
 import "package:hive_flutter/hive_flutter.dart";
 import "package:streamhub/models/channel.dart";
 import "package:streamhub/utils/logger.dart";
@@ -8,6 +9,7 @@ abstract final class PlaylistStorage {
   static const String _channelsKey = "cached_channels";
   static const String _lastUpdateKey = "last_update";
   static const String _playlistUrlKey = "playlist_url";
+  static const String _categorizedDataKey = "categorized_data";
 
   /// Initializes Hive storage (lightweight - just initializes Hive)
   static Future<void> init() async {
@@ -167,5 +169,92 @@ abstract final class PlaylistStorage {
           ? DateTime.now().difference(lastUpdate).inHours
           : null,
     };
+  }
+
+  // ==========================================================================
+  // Categorized Playlist Storage
+  // ==========================================================================
+
+  /// Saves categorized playlist data
+  /// Stores the category tree with channel indices and categorizer
+  /// metadata
+  static Future<void> saveCategorizedData({
+    required CategoryNode categoryTree,
+    required String categorizerId,
+    required String categorizerVersion,
+    required int totalChannels,
+  }) async {
+    try {
+      final box = await _getBox();
+      final startTime = DateTime.now();
+
+      final data = {
+        "categoryTree": categoryTree.toJson(),
+        "categorizerId": categorizerId,
+        "categorizerVersion": categorizerVersion,
+        "totalChannels": totalChannels,
+        "timestamp": DateTime.now().toIso8601String(),
+      };
+
+      await box.put(_categorizedDataKey, data);
+
+      final duration = DateTime.now().difference(startTime);
+      Logger.success(
+        "Saved categorized data ($totalChannels channels, "
+        "$categorizerId v$categorizerVersion) in "
+        "${duration.inMilliseconds}ms",
+      );
+    } on Exception catch (e) {
+      Logger.error("Failed to save categorized data: $e");
+    }
+  }
+
+  /// Loads categorized playlist data
+  /// Returns null if no cached data or if invalid JSON
+  static Future<Map<String, dynamic>?> loadCategorizedData() async {
+    try {
+      final box = await _getBox();
+      final data = box.get(_categorizedDataKey) as Map<dynamic, dynamic>?;
+
+      if (data == null) {
+        Logger.info("No cached categorized data found");
+        return null;
+      }
+
+      // Convert to proper types
+      return {
+        "categoryTree": data["categoryTree"] as Map<dynamic, dynamic>,
+        "categorizerId": data["categorizerId"] as String,
+        "categorizerVersion": data["categorizerVersion"] as String,
+        "totalChannels": data["totalChannels"] as int,
+        "timestamp": data["timestamp"] as String,
+      };
+    } on Exception catch (e) {
+      Logger.error("Failed to load categorized data: $e");
+      return null;
+    }
+  }
+
+  /// Checks if categorized data is valid for the given categorizer
+  static Future<bool> hasValidCategorizedData({
+    required String categorizerId,
+    required String version,
+  }) async {
+    final data = await loadCategorizedData();
+    if (data == null) return false;
+
+    return data["categorizerId"] == categorizerId &&
+        data["categorizerVersion"] == version;
+  }
+
+  /// Clears only the categorized data (keeps raw channels)
+  static Future<void> clearCategorizedData() async {
+    try {
+      final box = await _getBox();
+      await box.delete(_categorizedDataKey);
+      Logger.success("Categorized data cleared");
+    } on Exception catch (e) {
+      Logger.error("Failed to clear categorized data: $e");
+    }
   }
 }

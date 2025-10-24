@@ -1,6 +1,7 @@
 import "dart:async";
 import "dart:io";
 
+import "package:channel_categorizer/channel_categorizer.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:http/http.dart" as http;
@@ -127,11 +128,28 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
             "${parseDuration.inMilliseconds % 1000}s",
           );
 
-          // Categorize channels
+          // Categorize channels using the fast existing categorizer
           Logger.info("Categorizing channels...");
-          var categorizedChannels = ChannelCategorizer.categorize(channels);
+          final categorizeStartTime = DateTime.now();
 
-          // Analyze categories
+          // Use the existing fast categorizer
+          final categorizedChannels = ChannelCategorizer.categorize(channels);
+
+          // Build category tree from already-categorized channels
+          final categoryTree = ChannelCategorizer.buildCategoryTree(
+            categorizedChannels,
+          );
+
+          final categorizeDuration = DateTime.now().difference(
+            categorizeStartTime,
+          );
+          Logger.success(
+            "Categorized ${channels.length} channels in "
+            "${categorizeDuration.inSeconds}."
+            "${categorizeDuration.inMilliseconds % 1000}s",
+          );
+
+          // Analyze categories for stats
           final categoryStats = ChannelCategorizer.analyzeCategories(
             categorizedChannels,
           );
@@ -150,12 +168,21 @@ class PlaylistNotifier extends StateNotifier<PlaylistState> {
             lastUpdateTime: DateTime.now(),
           );
 
-          // Save to local storage in background (fire and forget)
-          Logger.info("Saving playlist to local storage...");
+          // Save raw playlist AND categorized data to storage (fire and forget)
+          Logger.info("Saving playlist and categorized data to storage...");
+          const categorizer = DefaultChannelCategorizer();
           unawaited(
             PlaylistStorage.savePlaylist(
               categorizedChannels,
               url,
+            ),
+          );
+          unawaited(
+            PlaylistStorage.saveCategorizedData(
+              categoryTree: categoryTree,
+              categorizerId: categorizer.categorizerId,
+              categorizerVersion: categorizer.version,
+              totalChannels: channels.length,
             ),
           );
         } else {

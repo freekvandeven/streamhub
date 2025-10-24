@@ -1,5 +1,5 @@
+import "package:channel_categorizer/channel_categorizer.dart";
 import "package:hive_flutter/hive_flutter.dart";
-import "package:streamhub/models/category_node.dart";
 import "package:streamhub/models/channel.dart";
 import "package:streamhub/utils/logger.dart";
 

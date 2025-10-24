@@ -20,6 +20,8 @@ dependencies:
   hive_flutter: ^1.1.0
   path_provider: ^2.1.1
   flutter_native_splash: ^2.4.1
+  channel_categorizer:
+    path: packages/channel_categorizer
 
 dev_dependencies:
   flutter_test:
