@@ -1,4 +1,4 @@
-package com.example.iptv_app
+package com.streamhub.app
 
 import io.flutter.embedding.android.FlutterActivity
 
