@@ -63,3 +63,6 @@ generate_icons.dart
 generate_icons.py
 generate_icons.bat
 generate_icons_v2.dart
+
+# Firebase
+.firebase/
