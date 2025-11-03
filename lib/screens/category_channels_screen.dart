@@ -119,14 +119,9 @@ class CategoryChannelsScreen extends HookConsumerWidget {
                           ),
                         ),
                         trailing: const Icon(Icons.play_circle_outline),
-                        onTap: () {
-                          // TODO(video-playback): Implement video playback
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text("Playing: ${channel.name}"),
-                              duration: const Duration(seconds: 2),
-                            ),
-                          );
+                        onTap: () async {
+                          // Navigate to video player
+                          await context.push("/video-player", extra: channel);
                         },
                       );
                     },

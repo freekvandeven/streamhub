@@ -95,13 +95,12 @@ class PlaylistsNotifier extends StateNotifier<PlaylistsState> {
 
       final fetchStartTime = DateTime.now();
 
-      final body = await HttpService.fetchPlaylist(url)
-          .timeout(
-            const Duration(seconds: 300),
-            onTimeout: () {
-              throw TimeoutException("Request timed out after 300 seconds");
-            },
-          );
+      final body = await HttpService.fetchPlaylist(url).timeout(
+        const Duration(seconds: 300),
+        onTimeout: () {
+          throw TimeoutException("Request timed out after 300 seconds");
+        },
+      );
 
       final fetchDuration = DateTime.now().difference(fetchStartTime);
 
@@ -123,8 +122,7 @@ class PlaylistsNotifier extends StateNotifier<PlaylistsState> {
         body,
       );
 
-      final categorizedChannels = (result[0] as List<dynamic>)
-          .cast<Channel>();
+      final categorizedChannels = (result[0] as List<dynamic>).cast<Channel>();
       final categoryTree = result[1] as CategoryNode;
 
       final parseDuration = DateTime.now().difference(parseStartTime);

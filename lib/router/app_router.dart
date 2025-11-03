@@ -8,6 +8,7 @@ import "package:streamhub/screens/home_screen.dart";
 import "package:streamhub/screens/loading_screen.dart";
 import "package:streamhub/screens/playlist_settings_screen.dart";
 import "package:streamhub/screens/settings_screen.dart";
+import "package:streamhub/screens/video_player_screen.dart";
 
 final routerProvider = Provider<GoRouter>((ref) {
   final isInitialized = ref.watch(initializationProvider);
@@ -51,6 +52,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             categoryName: extra["categoryName"]! as String,
             channels: extra["channels"]! as List<Channel>,
           );
+        },
+      ),
+      GoRoute(
+        path: "/video-player",
+        builder: (context, state) {
+          final channel = state.extra! as Channel;
+          return VideoPlayerScreen(channel: channel);
         },
       ),
     ],
