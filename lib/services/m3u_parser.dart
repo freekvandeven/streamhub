@@ -1,87 +1,72 @@
+import "dart:convert";
+
 import "package:streamhub/models/channel.dart";
 
 /// M3U playlist parser
 abstract final class M3uParser {
+  /// Matches attributes like tvg-id="..." or group-title="..."
+  static final _attributePattern = RegExp(r'([\w-]+)="([^"]*)"');
+
   /// Parses M3U playlist content and returns a list of channels
   static List<Channel> parse(String content) {
     final channels = <Channel>[];
-    final lines = content.split("\n");
 
     String? currentName;
-    String? currentUrl;
-    String? tvgId;
-    String? tvgName;
-    String? tvgLogo;
-    String? groupTitle;
+    var attributes = const <String, String>{};
 
-    for (var i = 0; i < lines.length; i++) {
-      final line = lines[i].trim();
+    for (final rawLine in LineSplitter.split(content)) {
+      final line = rawLine.trim();
 
       if (line.isEmpty) continue;
 
-      // Check for EXTINF line (contains channel metadata)
+      // EXTINF line: channel metadata followed by the display name
       if (line.startsWith("#EXTINF:")) {
-        // Extract attributes from EXTINF line
-        final attributes = _parseExtinfLine(line);
+        final separator = _titleSeparatorIndex(line);
+        final header = separator == -1 ? line : line.substring(0, separator);
+        final title = separator == -1 ? "" : line.substring(separator + 1);
 
-        tvgId = attributes["tvg-id"];
-        tvgName = attributes["tvg-name"];
-        tvgLogo = attributes["tvg-logo"];
-        groupTitle = attributes["group-title"];
+        attributes = {
+          for (final match in _attributePattern.allMatches(header))
+            match.group(1)!: match.group(2)!,
+        };
 
-        // Extract channel name (after the comma)
-        final commaIndex = line.lastIndexOf(",");
-        if (commaIndex != -1 && commaIndex < line.length - 1) {
-          currentName = line.substring(commaIndex + 1).trim();
-        }
+        final name = title.trim();
+        currentName = name.isNotEmpty ? name : attributes["tvg-name"];
       }
-      // Check for URL line (doesn't start with #)
+      // URL line (doesn't start with #)
       else if (!line.startsWith("#") && currentName != null) {
-        currentUrl = line;
-
-        // Create channel object
         channels.add(
           Channel(
             name: currentName,
-            url: currentUrl,
-            tvgId: tvgId,
-            tvgName: tvgName,
-            tvgLogo: tvgLogo,
-            groupTitle: groupTitle,
+            url: line,
+            tvgId: attributes["tvg-id"],
+            tvgName: attributes["tvg-name"],
+            tvgLogo: attributes["tvg-logo"],
+            groupTitle: attributes["group-title"],
           ),
         );
 
         // Reset for next channel
         currentName = null;
-        currentUrl = null;
-        tvgId = null;
-        tvgName = null;
-        tvgLogo = null;
-        groupTitle = null;
+        attributes = const {};
       }
     }
 
     return channels;
   }
 
-  /// Parses attributes from EXTINF line
-  static Map<String, String> _parseExtinfLine(String line) {
-    final attributes = <String, String>{};
-
-    // Match attributes like tvg-id="..." or group-title="..."
-    final regex = RegExp(r'(\w+-?\w+)="([^"]*)"');
-    final matches = regex.allMatches(line);
-
-    for (final match in matches) {
-      if (match.groupCount >= 2) {
-        final key = match.group(1);
-        final value = match.group(2);
-        if (key != null && value != null) {
-          attributes[key] = value;
-        }
+  /// Finds the comma that separates the EXTINF attributes from the channel
+  /// name, ignoring commas inside quoted attribute values
+  static int _titleSeparatorIndex(String line) {
+    var inQuotes = false;
+    for (var i = 0; i < line.length; i++) {
+      switch (line[i]) {
+        case '"':
+          inQuotes = !inQuotes;
+        case "," when !inQuotes:
+          return i;
       }
     }
-
-    return attributes;
+    return -1;
   }
 }
