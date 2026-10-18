@@ -4,6 +4,13 @@ include: package:flutter_iconica_analysis/analysis_options.yaml
 
 analyzer:
   exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
 
 linter:
   rules:

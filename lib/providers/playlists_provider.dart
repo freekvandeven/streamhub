@@ -27,8 +27,7 @@ class PlaylistsState {
   final bool isLoading;
   final String? error;
 
-  Playlist? get activePlaylist =>
-      playlists.where((p) => p.id == activePlaylistId).firstOrNull;
+  Playlist? get activePlaylist => playlists.where((p) => p.id == activePlaylistId).firstOrNull;
 
   PlaylistsState copyWith({
     List<Playlist>? playlists,
@@ -90,9 +89,7 @@ class PlaylistsNotifier extends Notifier<PlaylistsState> {
     String? error;
 
     try {
-      final existingPlaylist = state.playlists
-          .where((p) => p.url == url)
-          .firstOrNull;
+      final existingPlaylist = state.playlists.where((p) => p.url == url).firstOrNull;
 
       if (existingPlaylist != null && !forceRefresh) {
         Logger.info("Playlist already exists, activating it");
@@ -117,9 +114,7 @@ class PlaylistsNotifier extends Notifier<PlaylistsState> {
       );
 
       final playlist = Playlist(
-        id:
-            existingPlaylist?.id ??
-            DateTime.now().millisecondsSinceEpoch.toString(),
+        id: existingPlaylist?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
         name: name,
         url: url,
         channels: channels,
@@ -137,7 +132,8 @@ class PlaylistsNotifier extends Notifier<PlaylistsState> {
       } else {
         state = state.copyWith(
           playlists: [
-            for (final p in state.playlists) p.id == playlist.id ? playlist : p,
+            for (final p in state.playlists)
+              if (p.id == playlist.id) playlist else p,
           ],
         );
       }
@@ -184,13 +180,11 @@ List<Channel> _parsePlaylist(Uint8List bytes) {
 /// Converts a fetch failure into a message for the user
 String _describeFetchError(Exception error) {
   return switch (error) {
-    TimeoutException() =>
-      "Connection timeout - server took too long to respond",
+    TimeoutException() => "Connection timeout - server took too long to respond",
     HandshakeException() =>
       "SSL/TLS error: Unable to establish secure connection. "
           "The server may have an invalid certificate.",
-    SocketException(:final message) =>
-      "Network error: $message. Check your internet connection.",
+    SocketException(:final message) => "Network error: $message. Check your internet connection.",
     // Browsers hide the cause of failed requests, which is usually CORS
     http.ClientException() when kIsWeb =>
       "Failed to load playlist. The server may not allow requests from a "
@@ -215,8 +209,7 @@ String _formatBytes(int bytes) {
   return unit == 0 ? "$bytes B" : "${size.toStringAsFixed(2)} ${units[unit]}";
 }
 
-String _formatDuration(Duration duration) =>
-    "${(duration.inMilliseconds / 1000).toStringAsFixed(2)}s";
+String _formatDuration(Duration duration) => "${(duration.inMilliseconds / 1000).toStringAsFixed(2)}s";
 
 /// Provider for playlists state
 final playlistsProvider = NotifierProvider<PlaylistsNotifier, PlaylistsState>(

@@ -4,7 +4,8 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.9.2
+  sdk: ^3.13.0
+  flutter: ">=3.47.0"
 
 dependencies:
   flutter:
@@ -28,7 +29,7 @@ dev_dependencies:
     sdk: flutter
   flutter_iconica_analysis:
     hosted: https://forgejo.internal.iconica.nl/api/packages/internal/pub
-    version: ^7.0.0
+    version: ^10.0.0
   environment_config: ^4.0.0
   flutter_launcher_icons: ^0.14.1
   image: ^4.5.4

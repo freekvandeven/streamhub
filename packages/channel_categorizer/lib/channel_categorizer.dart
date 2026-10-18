@@ -1,5 +1,5 @@
 /// Channel categorization interface and default implementation
-library channel_categorizer;
+library;
 
 export "src/categorizer_interface.dart";
 export "src/default_categorizer.dart";
