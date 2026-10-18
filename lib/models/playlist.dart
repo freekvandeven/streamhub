@@ -11,29 +11,15 @@ class Playlist {
   });
 
   factory Playlist.fromJson(Map<String, dynamic> json) {
-    final channelsJson = json["channels"] as List<dynamic>;
-    final channels = channelsJson.map<Channel>((channelJson) {
-      // Handle both Map<String, dynamic> and Map<dynamic, dynamic>
-      final map = channelJson is Map<String, dynamic>
-          ? channelJson
-          : (channelJson as Map<dynamic, dynamic>).map(
-              (key, value) => MapEntry(key.toString(), value),
-            );
-      return Channel(
-        name: map["name"] as String,
-        url: map["url"] as String,
-        tvgId: map["tvgId"] as String?,
-        tvgName: map["tvgName"] as String?,
-        tvgLogo: map["tvgLogo"] as String?,
-        groupTitle: map["groupTitle"] as String?,
-      );
-    }).toList();
-
     return Playlist(
       id: json["id"] as String,
       name: json["name"] as String,
       url: json["url"] as String,
-      channels: channels,
+      channels: [
+        // Hive returns nested maps as Map<dynamic, dynamic>
+        for (final channel in json["channels"] as List<dynamic>)
+          Channel.fromJson(Map<String, dynamic>.from(channel as Map)),
+      ],
       lastUpdate: DateTime.parse(json["lastUpdate"] as String),
     );
   }
@@ -58,18 +44,7 @@ class Playlist {
       "id": id,
       "name": name,
       "url": url,
-      "channels": channels
-          .map(
-            (c) => {
-              "name": c.name,
-              "url": c.url,
-              "tvgId": c.tvgId,
-              "tvgName": c.tvgName,
-              "tvgLogo": c.tvgLogo,
-              "groupTitle": c.groupTitle,
-            },
-          )
-          .toList(),
+      "channels": [for (final channel in channels) channel.toJson()],
       "lastUpdate": lastUpdate.toIso8601String(),
     };
   }
