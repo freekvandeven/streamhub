@@ -1,14 +1,16 @@
+import "dart:async";
+
 import "package:chewie/chewie.dart";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:flutter_hooks/flutter_hooks.dart";
 import "package:go_router/go_router.dart";
-import "package:hooks_riverpod/hooks_riverpod.dart";
 import "package:streamhub/models/channel.dart";
+import "package:streamhub/widgets/channel_logo.dart";
 import "package:video_player/video_player.dart";
 
 /// Video player screen for live channels, movies, and TV series
-class VideoPlayerScreen extends HookConsumerWidget {
+class VideoPlayerScreen extends HookWidget {
   const VideoPlayerScreen({
     required this.channel,
     super.key,
@@ -17,41 +19,37 @@ class VideoPlayerScreen extends HookConsumerWidget {
   final Channel channel;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final videoPlayerController = useMemoized(
-      () => VideoPlayerController.networkUrl(
-        Uri.parse(channel.url),
-      ),
+      () => VideoPlayerController.networkUrl(Uri.parse(channel.url)),
       [channel.url],
     );
 
     final chewieController = useState<ChewieController?>(null);
-    final isInitialized = useState(false);
-    final hasError = useState(false);
-    final errorMessage = useState("");
+    final errorMessage = useState<String?>(null);
 
     // Capture theme colors before async operations
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final bufferedColor = primaryColor.withValues(alpha: 0.3);
 
     // Initialize video player
     useEffect(() {
+      var disposed = false;
+      ChewieController? chewie;
+
       Future<void> initializePlayer() async {
         try {
           await videoPlayerController.initialize();
+          // The screen may have been closed while the stream was loading
+          if (disposed) return;
 
-          chewieController.value = ChewieController(
+          chewie = ChewieController(
             videoPlayerController: videoPlayerController,
             autoPlay: true,
-            looping: false,
-            allowFullScreen: true,
-            allowMuting: true,
-            showControls: true,
             materialProgressColors: ChewieProgressColors(
               playedColor: primaryColor,
               handleColor: primaryColor,
               backgroundColor: Colors.grey,
-              bufferedColor: bufferedColor,
+              bufferedColor: primaryColor.withValues(alpha: 0.3),
             ),
             placeholder: ColoredBox(
               color: Colors.black,
@@ -59,26 +57,11 @@ class VideoPlayerScreen extends HookConsumerWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    if (channel.tvgLogo != null)
-                      Image.network(
-                        channel.tvgLogo!,
-                        width: 120,
-                        height: 120,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(
-                            Icons.tv,
-                            size: 120,
-                            color: Colors.white,
-                          );
-                        },
-                      )
-                    else
-                      const Icon(
-                        Icons.tv,
-                        size: 120,
-                        color: Colors.white,
-                      ),
+                    ChannelLogo(
+                      url: channel.tvgLogo,
+                      size: 120,
+                      fallbackColor: Colors.white,
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       channel.name,
@@ -93,87 +76,65 @@ class VideoPlayerScreen extends HookConsumerWidget {
                 ),
               ),
             ),
-            errorBuilder: (context, errorMessage) {
-              return ColoredBox(
-                color: Colors.black,
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.error_outline,
-                        color: Colors.red,
-                        size: 64,
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        "Playback Error",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Text(
-                          errorMessage,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        onPressed: () => context.pop(),
-                        icon: const Icon(Icons.arrow_back),
-                        label: const Text("Go Back"),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
+            errorBuilder: (context, errorMessage) => _PlaybackError(
+              title: "Playback Error",
+              message: errorMessage,
+            ),
           );
-
-          isInitialized.value = true;
+          chewieController.value = chewie;
         } on Exception catch (e) {
-          hasError.value = true;
-          errorMessage.value = e.toString();
+          if (!disposed) errorMessage.value = e.toString();
         }
       }
 
-      // ignore: discarded_futures
-      initializePlayer();
+      unawaited(initializePlayer());
 
       // Cleanup
       return () {
-        // ignore: discarded_futures
-        chewieController.value?.dispose();
-        // ignore: discarded_futures
-        videoPlayerController.dispose();
+        disposed = true;
+        chewie?.dispose();
+        unawaited(videoPlayerController.dispose());
       };
-    }, [channel.url]);
+    }, [videoPlayerController]);
 
-    // Enable landscape mode for video playback
+    // Allow landscape while the player is open, then restore the defaults
     useEffect(() {
-      // ignore: discarded_futures
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-        DeviceOrientation.portraitUp,
-      ]);
-
-      return () {
-        // ignore: discarded_futures
+      unawaited(
         SystemChrome.setPreferredOrientations([
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
           DeviceOrientation.portraitUp,
-        ]);
-      };
+        ]),
+      );
+
+      return () => unawaited(SystemChrome.setPreferredOrientations([]));
     }, []);
+
+    final Widget body;
+    if (errorMessage.value case final message?) {
+      body = _PlaybackError(
+        title: "Failed to Load Stream",
+        message: message,
+        details: "URL: ${channel.url}",
+      );
+    } else if (chewieController.value case final controller?) {
+      body = Chewie(controller: controller);
+    } else {
+      body = const Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(color: Colors.white),
+          SizedBox(height: 16),
+          Text(
+            "Loading stream...",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+            ),
+          ),
+        ],
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -187,9 +148,9 @@ class VideoPlayerScreen extends HookConsumerWidget {
               style: const TextStyle(color: Colors.white, fontSize: 16),
               overflow: TextOverflow.ellipsis,
             ),
-            if (channel.groupTitle != null)
+            if (channel.groupTitle case final groupTitle?)
               Text(
-                channel.groupTitle!,
+                groupTitle,
                 style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 12,
@@ -197,85 +158,79 @@ class VideoPlayerScreen extends HookConsumerWidget {
               ),
           ],
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.pop(),
-        ),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Center(
-        child: hasError.value
-            ? ColoredBox(
-                color: Colors.black,
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.error_outline,
-                        color: Colors.red,
-                        size: 64,
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        "Failed to Load Stream",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Text(
-                          errorMessage.value,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "URL: ${channel.url}",
-                        style: const TextStyle(
-                          color: Colors.white60,
-                          fontSize: 12,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        onPressed: () => context.pop(),
-                        icon: const Icon(Icons.arrow_back),
-                        label: const Text("Go Back"),
-                      ),
-                    ],
-                  ),
+      body: Center(child: body),
+    );
+  }
+}
+
+class _PlaybackError extends StatelessWidget {
+  const _PlaybackError({
+    required this.title,
+    required this.message,
+    this.details,
+  });
+
+  final String title;
+  final String message;
+  final String? details;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Colors.black,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              color: Colors.red,
+              size: 64,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
                 ),
-              )
-            : !isInitialized.value
-            ? const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(color: Colors.white),
-                  SizedBox(height: 16),
-                  Text(
-                    "Loading stream...",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
-              )
-            : chewieController.value != null
-            ? Chewie(controller: chewieController.value!)
-            : const SizedBox.shrink(),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            if (details case final details?) ...[
+              const SizedBox(height: 8),
+              Text(
+                details,
+                style: const TextStyle(
+                  color: Colors.white60,
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => context.pop(),
+              icon: const Icon(Icons.arrow_back),
+              label: const Text("Go Back"),
+            ),
+          ],
+        ),
       ),
     );
   }
