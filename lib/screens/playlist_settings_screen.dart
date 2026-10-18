@@ -97,9 +97,7 @@ class PlaylistSettingsScreen extends HookConsumerWidget {
                                   // Clear input fields after successful add.
                                   // Read fresh state: `playlistsState` is
                                   // from before the fetch.
-                                  if (context.mounted &&
-                                      ref.read(playlistsProvider).error ==
-                                          null) {
+                                  if (context.mounted && ref.read(playlistsProvider).error == null) {
                                     urlController.clear();
                                     nameController.clear();
                                   }
@@ -114,9 +112,7 @@ class PlaylistSettingsScreen extends HookConsumerWidget {
                                 )
                               : const Icon(Icons.add),
                           label: Text(
-                            playlistsState.isLoading
-                                ? "Loading..."
-                                : "Add Playlist",
+                            playlistsState.isLoading ? "Loading..." : "Add Playlist",
                           ),
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -162,13 +158,10 @@ class PlaylistSettingsScreen extends HookConsumerWidget {
                       itemCount: playlistsState.playlists.length,
                       itemBuilder: (context, index) {
                         final playlist = playlistsState.playlists[index];
-                        final isActive =
-                            playlist.id == playlistsState.activePlaylistId;
+                        final isActive = playlist.id == playlistsState.activePlaylistId;
 
                         return Card(
-                          color: isActive
-                              ? colorScheme.secondaryContainer
-                              : null,
+                          color: isActive ? colorScheme.secondaryContainer : null,
                           child: ListTile(
                             leading: Icon(
                               Icons.playlist_play,
@@ -201,9 +194,7 @@ class PlaylistSettingsScreen extends HookConsumerWidget {
                                       Icons.check_circle_outline,
                                     ),
                                     onPressed: () async {
-                                      await ref
-                                          .read(playlistsProvider.notifier)
-                                          .setActivePlaylist(playlist.id);
+                                      await ref.read(playlistsProvider.notifier).setActivePlaylist(playlist.id);
                                     },
                                     tooltip: "Set as active",
                                   ),
@@ -239,8 +230,7 @@ class PlaylistSettingsScreen extends HookConsumerWidget {
                                             child: const Text("Cancel"),
                                           ),
                                           TextButton(
-                                            onPressed: () =>
-                                                Navigator.of(context).pop(true),
+                                            onPressed: () => Navigator.of(context).pop(true),
                                             child: const Text("Delete"),
                                           ),
                                         ],
@@ -248,9 +238,7 @@ class PlaylistSettingsScreen extends HookConsumerWidget {
                                     );
 
                                     if (confirmed ?? false) {
-                                      await ref
-                                          .read(playlistsProvider.notifier)
-                                          .removePlaylist(playlist.id);
+                                      await ref.read(playlistsProvider.notifier).removePlaylist(playlist.id);
                                     }
                                   },
                                   tooltip: "Delete",

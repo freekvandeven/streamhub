@@ -66,6 +66,5 @@ class Playlist {
   }
 
   @override
-  String toString() =>
-      "Playlist(id: $id, name: $name, channels: ${channels.length})";
+  String toString() => "Playlist(id: $id, name: $name, channels: ${channels.length})";
 }

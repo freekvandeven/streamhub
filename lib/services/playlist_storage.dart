@@ -29,8 +29,7 @@ abstract final class PlaylistStorage {
     return Hive.openBox<dynamic>(_boxName);
   }
 
-  static String _playlistKey(String playlistId) =>
-      "$_playlistKeyPrefix$playlistId";
+  static String _playlistKey(String playlistId) => "$_playlistKeyPrefix$playlistId";
 
   /// Loads all playlists, oldest first
   static Future<List<Playlist>> loadAllPlaylists() async {
@@ -93,8 +92,7 @@ abstract final class PlaylistStorage {
     final legacyPlaylists = box.get(_legacyPlaylistsKey) as List<dynamic>?;
     if (legacyPlaylists != null) {
       await box.putAll({
-        for (final json in legacyPlaylists)
-          _playlistKey((json as Map)["id"] as String): json,
+        for (final json in legacyPlaylists) _playlistKey((json as Map)["id"] as String): json,
       });
       Logger.info("Migrated ${legacyPlaylists.length} playlists");
     }

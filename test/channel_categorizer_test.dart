@@ -12,9 +12,7 @@ void main() {
       String url = "http://stream/live/123",
       String? groupTitle,
     }) {
-      return categorizer
-          .categorizeChannel(name: name, url: url, groupTitle: groupTitle)
-          .categoryPath;
+      return categorizer.categorizeChannel(name: name, url: url, groupTitle: groupTitle).categoryPath;
     }
 
     test("keeps an existing group title", () {

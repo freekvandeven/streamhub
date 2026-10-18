@@ -26,8 +26,7 @@ abstract final class M3uParser {
         final title = separator == -1 ? "" : line.substring(separator + 1);
 
         attributes = {
-          for (final match in _attributePattern.allMatches(header))
-            match.group(1)!: match.group(2)!,
+          for (final match in _attributePattern.allMatches(header)) match.group(1)!: match.group(2)!,
         };
 
         final name = title.trim();

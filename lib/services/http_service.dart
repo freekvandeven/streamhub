@@ -11,8 +11,7 @@ class HttpStatusException implements Exception {
   final String? reasonPhrase;
 
   @override
-  String toString() =>
-      ["HTTP $statusCode", if (reasonPhrase != null) reasonPhrase].join(" ");
+  String toString() => ["HTTP $statusCode", if (reasonPhrase != null) reasonPhrase].join(" ");
 }
 
 /// Simple HTTP service for fetching playlists
@@ -23,9 +22,7 @@ abstract final class HttpService {
   /// an [HttpStatusException] if the server doesn't respond with success.
   static Future<Uint8List> fetchPlaylist(String url) async {
     final uri = Uri.tryParse(url);
-    if (uri == null ||
-        !(uri.isScheme("http") || uri.isScheme("https")) ||
-        uri.host.isEmpty) {
+    if (uri == null || !(uri.isScheme("http") || uri.isScheme("https")) || uri.host.isEmpty) {
       throw FormatException("Expected an http(s) URL", url);
     }
 

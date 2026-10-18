@@ -23,8 +23,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // when the page is reloaded on web, so fall back to the home screen.
       GoRoute(
         path: "/category-channels",
-        redirect: (context, state) =>
-            state.extra is ChannelCategory ? null : "/",
+        redirect: (context, state) => state.extra is ChannelCategory ? null : "/",
         builder: (context, state) => CategoryChannelsScreen(
           category: state.extra! as ChannelCategory,
         ),
@@ -32,8 +31,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: "/video-player",
         redirect: (context, state) => state.extra is Channel ? null : "/",
-        builder: (context, state) =>
-            VideoPlayerScreen(channel: state.extra! as Channel),
+        builder: (context, state) => VideoPlayerScreen(channel: state.extra! as Channel),
       ),
     ],
   );

@@ -4,8 +4,7 @@ import "package:streamhub/models/channel.dart";
 /// Smart channel categorization service
 /// Assigns hierarchical category paths using the channel_categorizer package
 abstract final class ChannelCategorizer {
-  static const ChannelCategorizerInterface _categorizer =
-      DefaultChannelCategorizer();
+  static const ChannelCategorizerInterface _categorizer = DefaultChannelCategorizer();
 
   /// Returns copies of [channels] whose group title is replaced by a
   /// hierarchical category path (e.g. "Live TV > Sports > UK Sports")

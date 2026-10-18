@@ -76,9 +76,7 @@ class CategoryChannelsScreen extends HookWidget {
             child: displayChannels.isEmpty
                 ? Center(
                     child: Text(
-                      searchQuery.value.isEmpty
-                          ? "No channels in this category"
-                          : "No channels match your search",
+                      searchQuery.value.isEmpty ? "No channels in this category" : "No channels match your search",
                     ),
                   )
                 : ListView.builder(
@@ -101,8 +99,7 @@ class CategoryChannelsScreen extends HookWidget {
                           ),
                         ),
                         trailing: const Icon(Icons.play_circle_outline),
-                        onTap: () =>
-                            context.push("/video-player", extra: channel),
+                        onTap: () => context.push("/video-player", extra: channel),
                       );
                     },
                   ),

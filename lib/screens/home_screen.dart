@@ -38,9 +38,7 @@ class HomeScreen extends HookConsumerWidget {
     final filteredCategories = useMemoized(() {
       final query = searchQuery.value.trim().toLowerCase();
       if (query.isEmpty) return categories;
-      return categories
-          .where((c) => c.name.toLowerCase().contains(query))
-          .toList();
+      return categories.where((c) => c.name.toLowerCase().contains(query)).toList();
     }, [categories, searchQuery.value]);
 
     final Widget content;
@@ -51,8 +49,7 @@ class HomeScreen extends HookConsumerWidget {
     } else {
       content = ListView.builder(
         itemCount: filteredCategories.length,
-        itemBuilder: (context, index) =>
-            _CategoryTile(category: filteredCategories[index]),
+        itemBuilder: (context, index) => _CategoryTile(category: filteredCategories[index]),
       );
     }
 
