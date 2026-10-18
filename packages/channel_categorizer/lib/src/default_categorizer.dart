@@ -6,11 +6,159 @@ import "package:channel_categorizer/src/categorizer_interface.dart";
 class DefaultChannelCategorizer implements ChannelCategorizerInterface {
   const DefaultChannelCategorizer();
 
+  /// File extensions that indicate on-demand content. Live stream formats
+  /// such as `.ts` and `.m3u8` are deliberately not included.
+  static const _vodExtensions = [
+    ".mkv",
+    ".mp4",
+    ".avi",
+    ".mov",
+    ".wmv",
+    ".flv",
+    ".webm",
+    ".m4v",
+    ".mpg",
+    ".mpeg",
+    ".3gp",
+  ];
+
+  static final _seriesPattern = RegExp(
+    [
+      r"s\d{1,2}\s*e\d{1,2}", // S01E01, S1E1, S1 E1
+      r"season\s*\d+", // Season 1
+      r"episode\s*\d+", // Episode 1
+      r"\|\s*s\d+", // | S1
+      r"\bs\d{2}\b", // S01 (standalone)
+    ].join("|"),
+  );
+
+  /// Episode-like naming that the stricter series patterns don't cover
+  static final _episodePattern = RegExp(r"\b(?:ep|part|pt)\.?\s*\d+");
+
+  static const _movieIndicators = ["[vod]", "(vod)", "movie", "film"];
+
+  static final _yearPattern = RegExp(r"\((?:19|20)\d{2}\)|\[(?:19|20)\d{2}\]");
+
+  static const _countries = {
+    // Europe
+    "uk": "UK",
+    "gb": "UK",
+    "us": "USA",
+    "usa": "USA",
+    "nl": "Netherlands",
+    "de": "Germany",
+    "fr": "France",
+    "es": "Spain",
+    "it": "Italy",
+    "pt": "Portugal",
+    "be": "Belgium",
+    "se": "Sweden",
+    "no": "Norway",
+    "dk": "Denmark",
+    "fi": "Finland",
+    "pl": "Poland",
+    "ro": "Romania",
+    "gr": "Greece",
+    "tr": "Turkey",
+    "ru": "Russia",
+    "ie": "Ireland",
+    "ch": "Switzerland",
+    "at": "Austria",
+
+    // Middle East & Africa
+    "ae": "UAE",
+    "sa": "Saudi Arabia",
+    "eg": "Egypt",
+    "za": "South Africa",
+    "il": "Israel",
+
+    // Asia Pacific
+    "in": "India",
+    "pk": "Pakistan",
+    "cn": "China",
+    "jp": "Japan",
+    "kr": "Korea",
+    "au": "Australia",
+    "nz": "New Zealand",
+    "th": "Thailand",
+    "sg": "Singapore",
+
+    // Americas
+    "ca": "Canada",
+    "mx": "Mexico",
+    "br": "Brazil",
+    "ar": "Argentina",
+  };
+
+  static final _countryCodes = _countries.keys.join("|");
+
+  /// Tagged country codes: [UK], UK:, |UK| or (UK)
+  static final _countryTagPattern = RegExp(
+    "^\\[($_countryCodes)\\]|^($_countryCodes):"
+    "|\\|($_countryCodes)\\||\\(($_countryCodes)\\)",
+    caseSensitive: false,
+  );
+
+  /// A bare country code at the start, e.g. "UK BBC One". Only upper case
+  /// codes match, so names like "In the Night Garden" aren't seen as India.
+  static final _countryPrefixPattern = RegExp(
+    "^(${_countryCodes.toUpperCase()})\\s",
+  );
+
+  /// Genre keywords for channels with a detected country, checked in order
+  static const _countryGenres = {
+    "Sports": ["sport"],
+    "News": ["news"],
+    "Kids": ["kids", "cartoon"],
+    "Music": ["music", "mtv"],
+    "Documentary": ["docu"],
+    "Entertainment": ["entertain"],
+    "Movies": ["movie", "cinema"],
+    "Series": ["series"],
+  };
+
+  /// Genre keywords for live channels without a country, checked in order
+  static const _liveGenres = {
+    "Sports": ["sport", "espn", "bein", "tsn"],
+    "News": ["news", "cnn", "msnbc", "al jazeera"],
+    "Kids": [
+      "kids",
+      "cartoon",
+      "disney",
+      "nickelodeon",
+      "nick jr",
+      "baby tv",
+    ],
+    "Music": ["music", "mtv", "vh1"],
+    "Documentary": [
+      "documentary",
+      "discovery",
+      "natgeo",
+      "nat geo",
+      "history",
+      "animal planet",
+    ],
+    "Entertainment": ["entertainment", "comedy", "hbo", "showtime"],
+    "Religious": ["religious", "islam", "christian", "gospel"],
+  };
+
+  /// Genre keywords for movies and series, checked in order
+  static const _vodGenres = {
+    "Action & Adventure": ["action", "adventure", "thriller"],
+    "Comedy": ["comedy", "funny"],
+    "Drama": ["drama"],
+    "Horror": ["horror", "scary", "fear"],
+    "Sci-Fi & Fantasy": ["sci-fi", "scifi", "fantasy", "space"],
+    "Romance": ["romance", "love"],
+    "Animation & Kids": ["animation", "animated", "cartoon", "kids"],
+    "Documentary": ["docu", "true story"],
+  };
+
   @override
   String get categorizerId => "default";
 
   @override
-  String get version => "1.0.0";
+  String get version => "1.1.0";
 
   @override
   CategorizationResult categorizeChannel({
@@ -24,331 +172,108 @@ class DefaultChannelCategorizer implements ChannelCategorizerInterface {
     if (groupTitle != null &&
         groupTitle.isNotEmpty &&
         groupTitle.toLowerCase() != "uncategorized") {
-      return CategorizationResult(
-        categoryPath: groupTitle,
-        categoryId: groupTitle.toLowerCase().replaceAll(" ", "_"),
-      );
+      return _result(groupTitle);
     }
 
     final lowerName = name.toLowerCase();
-    final lowerUrl = url.toLowerCase();
 
-    // 1. Check if URL contains video file extension (VOD indicator)
-    final isVideoFile = _isVideoFileUrl(lowerUrl);
-
-    // 2. Check for VOD content (Movies & Series)
-    final vodResult = _detectVodCategory(lowerName, lowerUrl, isVideoFile);
-    if (vodResult != null) {
-      return vodResult;
-    }
-
-    // 3. Check for country-specific channels
-    final countryResult = _detectCountryInfo(lowerName);
-    if (countryResult != null) {
-      return countryResult;
-    }
-
-    // 4. Check for genre without country
-    final genreResult = _detectGenreCategory(lowerName);
-    if (genreResult != null) {
-      return genreResult;
-    }
-
-    // 5. Default to "Live TV"
-    return const CategorizationResult(
-      categoryPath: "Live TV",
-      categoryId: "live_tv",
-    );
+    return _detectVodCategory(lowerName, isVideoFile: _isVideoFileUrl(url)) ??
+        _detectCountryCategory(name, lowerName) ??
+        _detectGenreCategory(lowerName) ??
+        _result("Live TV");
   }
 
-  /// Checks if URL points to a video file
-  bool _isVideoFileUrl(String url) {
-    const videoExtensions = [
-      ".mkv",
-      ".mp4",
-      ".avi",
-      ".mov",
-      ".wmv",
-      ".flv",
-      ".webm",
-      ".m4v",
-      ".mpg",
-      ".mpeg",
-      ".3gp",
-      ".ts",
-      ".m3u8",
-    ];
-
-    return videoExtensions.any((ext) => url.contains(ext));
+  /// Checks if the URL path points to an on-demand video file
+  static bool _isVideoFileUrl(String url) {
+    final path = (Uri.tryParse(url)?.path ?? url).toLowerCase();
+    return _vodExtensions.any(path.endsWith);
   }
 
-  /// Detects VOD content with hierarchical categorization
-  CategorizationResult? _detectVodCategory(
-    String name,
-    String url,
-    bool isVideoFile,
-  ) {
-    // Series indicators
-    final seriesPatterns = [
-      RegExp(r"s\d{2}e\d{2}"),
-      RegExp(r"s\d{1,2}\s*e\d{1,2}"),
-      RegExp(r"season\s*\d+"),
-      RegExp(r"episode\s*\d+"),
-      RegExp(r"\|\s*s\d+"),
-      RegExp(r"\bs\d{2}\b"),
-    ];
-
-    for (final pattern in seriesPatterns) {
-      if (pattern.hasMatch(name)) {
-        final genre = _detectVodGenre(name);
-        final path = genre != null ? "Series > $genre" : "Series";
-        return CategorizationResult(
-          categoryPath: path,
-          categoryId: path.toLowerCase().replaceAll(" ", "_"),
-          metadata: {"type": "series", "genre": genre},
-        );
-      }
+  /// Detects movies and series
+  static CategorizationResult? _detectVodCategory(
+    String name, {
+    required bool isVideoFile,
+  }) {
+    if (_seriesPattern.hasMatch(name)) {
+      return _vodResult(name, isSeries: true);
     }
 
-    // Movie indicators
-    const movieIndicators = ["[vod]", "(vod)", "movie", "film"];
-    final hasMovieIndicator = movieIndicators.any((i) => name.contains(i));
+    final hasMovieIndicator = _movieIndicators.any(name.contains);
 
-    final yearPatterns = [
-      RegExp(r"\(19\d{2}\)"),
-      RegExp(r"\(20[0-9]{2}\)"),
-      RegExp(r"\[19\d{2}\]"),
-      RegExp(r"\[20[0-9]{2}\]"),
-    ];
-    final hasYearPattern = yearPatterns.any((p) => p.hasMatch(name));
-
-    if (isVideoFile && (hasMovieIndicator || hasYearPattern)) {
-      final genre = _detectVodGenre(name);
-      final path = genre != null ? "Movies > $genre" : "Movies";
-      return CategorizationResult(
-        categoryPath: path,
-        categoryId: path.toLowerCase().replaceAll(" ", "_"),
-        metadata: {"type": "movie", "genre": genre},
-      );
-    }
-
-    if (isVideoFile && !hasMovieIndicator && !hasYearPattern) {
-      if (name.contains("ep") || name.contains("part") || name.contains("pt")) {
-        final genre = _detectVodGenre(name);
-        final path = genre != null ? "Series > $genre" : "Series";
-        return CategorizationResult(
-          categoryPath: path,
-          categoryId: path.toLowerCase().replaceAll(" ", "_"),
-          metadata: {"type": "series", "genre": genre},
-        );
-      }
-
-      final genre = _detectVodGenre(name);
-      final path = genre != null ? "Movies > $genre" : "Movies";
-      return CategorizationResult(
-        categoryPath: path,
-        categoryId: path.toLowerCase().replaceAll(" ", "_"),
-        metadata: {"type": "movie", "genre": genre},
-      );
+    if (isVideoFile) {
+      // Without explicit movie hints, episode-like naming suggests a series
+      final isSeries =
+          !hasMovieIndicator &&
+          !_yearPattern.hasMatch(name) &&
+          _episodePattern.hasMatch(name);
+      return _vodResult(name, isSeries: isSeries);
     }
 
     if (hasMovieIndicator) {
-      final genre = _detectVodGenre(name);
-      final path = genre != null ? "Movies > $genre" : "Movies";
-      return CategorizationResult(
-        categoryPath: path,
-        categoryId: path.toLowerCase().replaceAll(" ", "_"),
-        metadata: {"type": "movie", "genre": genre},
-      );
+      return _vodResult(name, isSeries: false);
     }
 
     return null;
   }
 
-  /// Detects genre for VOD content
-  String? _detectVodGenre(String name) {
-    if (name.contains("action") ||
-        name.contains("adventure") ||
-        name.contains("thriller")) {
-      return "Action & Adventure";
-    }
-    if (name.contains("comedy") || name.contains("funny")) return "Comedy";
-    if (name.contains("drama")) return "Drama";
-    if (name.contains("horror") ||
-        name.contains("scary") ||
-        name.contains("fear"))
-      return "Horror";
-    if (name.contains("sci-fi") ||
-        name.contains("scifi") ||
-        name.contains("fantasy") ||
-        name.contains("space"))
-      return "Sci-Fi & Fantasy";
-    if (name.contains("romance") || name.contains("love")) return "Romance";
-    if (name.contains("animation") ||
-        name.contains("animated") ||
-        name.contains("cartoon") ||
-        name.contains("kids"))
-      return "Animation & Kids";
-    if (name.contains("documentary") ||
-        name.contains("docu") ||
-        name.contains("true story"))
-      return "Documentary";
+  static CategorizationResult _vodResult(
+    String name, {
+    required bool isSeries,
+  }) {
+    final root = isSeries ? "Series" : "Movies";
+    final genre = _matchGenre(_vodGenres, name);
+    return _result(
+      genre != null ? "$root > $genre" : root,
+      metadata: {"type": isSeries ? "series" : "movie", "genre": genre},
+    );
+  }
 
+  /// Detects country-specific channels, e.g. "Live TV > Sports > UK Sports"
+  static CategorizationResult? _detectCountryCategory(
+    String name,
+    String lowerName,
+  ) {
+    final match =
+        _countryPrefixPattern.firstMatch(name) ??
+        _countryTagPattern.firstMatch(name);
+    if (match == null) return null;
+
+    final code = [
+      for (var i = 1; i <= match.groupCount; i++) match.group(i),
+    ].nonNulls.first.toLowerCase();
+    final country = _countries[code]!;
+    final genre = _matchGenre(_countryGenres, lowerName);
+    final path = genre != null
+        ? "Live TV > $genre > $country $genre"
+        : "Live TV > $country";
+
+    return _result(path, metadata: {"country": country, "genre": genre});
+  }
+
+  /// Detects genre-based live channel categories
+  static CategorizationResult? _detectGenreCategory(String name) {
+    final genre = _matchGenre(_liveGenres, name);
+    if (genre == null) return null;
+
+    return _result("Live TV > $genre", metadata: {"genre": genre});
+  }
+
+  /// Returns the first genre whose keywords appear in [name]
+  static String? _matchGenre(Map<String, List<String>> genres, String name) {
+    for (final MapEntry(key: genre, value: keywords) in genres.entries) {
+      if (keywords.any(name.contains)) return genre;
+    }
     return null;
   }
 
-  /// Detects country info
-  CategorizationResult? _detectCountryInfo(String name) {
-    const countryPatterns = {
-      "uk": "UK",
-      "gb": "UK",
-      "us": "USA",
-      "usa": "USA",
-      "nl": "Netherlands",
-      "de": "Germany",
-      "fr": "France",
-      "es": "Spain",
-      "it": "Italy",
-      "pt": "Portugal",
-      "be": "Belgium",
-      "se": "Sweden",
-      "no": "Norway",
-      "dk": "Denmark",
-      "fi": "Finland",
-      "pl": "Poland",
-      "ro": "Romania",
-      "gr": "Greece",
-      "tr": "Turkey",
-      "ru": "Russia",
-      "ie": "Ireland",
-      "ch": "Switzerland",
-      "at": "Austria",
-      "ae": "UAE",
-      "sa": "Saudi Arabia",
-      "eg": "Egypt",
-      "za": "South Africa",
-      "il": "Israel",
-      "in": "India",
-      "pk": "Pakistan",
-      "cn": "China",
-      "jp": "Japan",
-      "kr": "Korea",
-      "au": "Australia",
-      "nz": "New Zealand",
-      "th": "Thailand",
-      "sg": "Singapore",
-      "ca": "Canada",
-      "mx": "Mexico",
-      "br": "Brazil",
-      "ar": "Argentina",
-    };
-
-    for (final entry in countryPatterns.entries) {
-      final code = entry.key;
-      final country = entry.value;
-
-      final patterns = [
-        RegExp("^\\[$code\\]", caseSensitive: false),
-        RegExp("^$code:", caseSensitive: false),
-        RegExp("^$code\\s", caseSensitive: false),
-        RegExp("\\|$code\\|", caseSensitive: false),
-        RegExp("\\($code\\)", caseSensitive: false),
-      ];
-
-      for (final pattern in patterns) {
-        if (pattern.hasMatch(name)) {
-          final genre = _detectGenreFromName(name);
-          final path = genre != null
-              ? "Live TV > $genre > $country $genre"
-              : "Live TV > $country";
-          return CategorizationResult(
-            categoryPath: path,
-            categoryId: path.toLowerCase().replaceAll(" ", "_"),
-            metadata: {"country": country, "genre": genre},
-          );
-        }
-      }
-    }
-
-    return null;
-  }
-
-  /// Detects genre from channel name
-  String? _detectGenreFromName(String name) {
-    if (name.contains("sport")) return "Sports";
-    if (name.contains("news")) return "News";
-    if (name.contains("kids") || name.contains("cartoon")) return "Kids";
-    if (name.contains("music") || name.contains("mtv")) return "Music";
-    if (name.contains("documentary") || name.contains("docu")) {
-      return "Documentary";
-    }
-    if (name.contains("entertainment") || name.contains("entertain")) {
-      return "Entertainment";
-    }
-    if (name.contains("movie") || name.contains("cinema")) return "Movies";
-    if (name.contains("series")) return "Series";
-    return null;
-  }
-
-  /// Detects genre-based categories
-  CategorizationResult? _detectGenreCategory(String name) {
-    String? genre;
-
-    if (name.contains("sport") ||
-        name.contains("espn") ||
-        name.contains("bein") ||
-        name.contains("sky sports") ||
-        name.contains("fox sports") ||
-        name.contains("tsn") ||
-        name.contains("eurosport")) {
-      genre = "Sports";
-    } else if (name.contains("news") ||
-        name.contains("cnn") ||
-        name.contains("bbc news") ||
-        name.contains("fox news") ||
-        name.contains("msnbc") ||
-        name.contains("al jazeera")) {
-      genre = "News";
-    } else if (name.contains("kids") ||
-        name.contains("cartoon") ||
-        name.contains("disney") ||
-        name.contains("nickelodeon") ||
-        name.contains("nick jr") ||
-        name.contains("baby tv")) {
-      genre = "Kids";
-    } else if (name.contains("music") ||
-        name.contains("mtv") ||
-        name.contains("vh1") ||
-        name.contains("hit music")) {
-      genre = "Music";
-    } else if (name.contains("documentary") ||
-        name.contains("discovery") ||
-        name.contains("natgeo") ||
-        name.contains("nat geo") ||
-        name.contains("history") ||
-        name.contains("animal planet")) {
-      genre = "Documentary";
-    } else if (name.contains("entertainment") ||
-        name.contains("comedy") ||
-        name.contains("hbo") ||
-        name.contains("showtime")) {
-      genre = "Entertainment";
-    } else if (name.contains("religious") ||
-        name.contains("islam") ||
-        name.contains("christian") ||
-        name.contains("gospel")) {
-      genre = "Religious";
-    }
-
-    if (genre != null) {
-      final path = "Live TV > $genre";
-      return CategorizationResult(
-        categoryPath: path,
-        categoryId: path.toLowerCase().replaceAll(" ", "_"),
-        metadata: {"genre": genre},
-      );
-    }
-
-    return null;
+  static CategorizationResult _result(
+    String path, {
+    Map<String, dynamic> metadata = const {},
+  }) {
+    return CategorizationResult(
+      categoryPath: path,
+      categoryId: path.toLowerCase().replaceAll(" ", "_"),
+      metadata: metadata,
+    );
   }
 }
