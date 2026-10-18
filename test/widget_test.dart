@@ -31,7 +31,7 @@ void main() {
   late Directory hiveDir;
 
   setUpAll(() async {
-    dotenv.testLoad(fileInput: "PLAYLIST_URL=");
+    dotenv.loadFromString(envString: "PLAYLIST_URL=");
     hiveDir = await Directory.systemTemp.createTemp("streamhub_widget_");
     Hive.init(hiveDir.path);
   });
