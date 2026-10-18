@@ -13,6 +13,7 @@ class PlaylistSettingsScreen extends HookConsumerWidget {
     final urlController = useTextEditingController(text: defaultUrl);
     final nameController = useTextEditingController();
     final playlistsState = ref.watch(playlistsProvider);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -93,9 +94,12 @@ class PlaylistSettingsScreen extends HookConsumerWidget {
                                         name: name,
                                       );
 
-                                  // Clear input fields after successful add
-                                  if (!playlistsState.isLoading &&
-                                      playlistsState.error == null) {
+                                  // Clear input fields after successful add.
+                                  // Read fresh state: `playlistsState` is
+                                  // from before the fetch.
+                                  if (context.mounted &&
+                                      ref.read(playlistsProvider).error ==
+                                          null) {
                                     urlController.clear();
                                     nameController.clear();
                                   }
@@ -125,17 +129,19 @@ class PlaylistSettingsScreen extends HookConsumerWidget {
                 const SizedBox(height: 16),
                 if (playlistsState.error != null)
                   Card(
-                    color: Colors.red.shade50,
+                    color: colorScheme.errorContainer,
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Row(
                         children: [
-                          const Icon(Icons.error, color: Colors.red),
+                          Icon(Icons.error, color: colorScheme.error),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
                               playlistsState.error!,
-                              style: const TextStyle(color: Colors.red),
+                              style: TextStyle(
+                                color: colorScheme.onErrorContainer,
+                              ),
                             ),
                           ),
                         ],
@@ -160,11 +166,13 @@ class PlaylistSettingsScreen extends HookConsumerWidget {
                             playlist.id == playlistsState.activePlaylistId;
 
                         return Card(
-                          color: isActive ? Colors.blue.shade50 : null,
+                          color: isActive
+                              ? colorScheme.secondaryContainer
+                              : null,
                           child: ListTile(
                             leading: Icon(
                               Icons.playlist_play,
-                              color: isActive ? Colors.blue : null,
+                              color: isActive ? colorScheme.primary : null,
                             ),
                             title: Text(
                               playlist.name,
@@ -255,13 +263,13 @@ class PlaylistSettingsScreen extends HookConsumerWidget {
                     ),
                   ),
                 ] else if (!playlistsState.isLoading)
-                  const Expanded(
+                  Expanded(
                     child: Center(
                       child: Text(
                         "No playlists yet. Add one above!",
                         style: TextStyle(
                           fontSize: 16,
-                          color: Colors.grey,
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
