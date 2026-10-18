@@ -1,34 +1,43 @@
-import "dart:developer" as developer;
-import "dart:io";
+import "dart:typed_data";
 
 import "package:http/http.dart" as http;
+import "package:streamhub/utils/logger.dart";
+
+/// Thrown when the playlist server responds with a non-success status code
+class HttpStatusException implements Exception {
+  const HttpStatusException(this.statusCode, [this.reasonPhrase]);
+
+  final int statusCode;
+  final String? reasonPhrase;
+
+  @override
+  String toString() =>
+      ["HTTP $statusCode", if (reasonPhrase != null) reasonPhrase].join(" ");
+}
 
 /// Simple HTTP service for fetching playlists
-class HttpService {
-  /// Fetches playlist content from URL
-  static Future<String> fetchPlaylist(String url) async {
-    developer.log("Fetching playlist from: $url");
-    
-    try {
-      final response = await http.get(Uri.parse(url));
-      
-      if (response.statusCode == 200) {
-        return response.body;
-      } else {
-        throw Exception("HTTP ${response.statusCode}: Failed to load playlist");
-      }
-    } on SocketException catch (e) {
-      // CORS errors often manifest as SocketException on web
-      throw Exception(
-        "Failed to load playlist.\n\n"
-        "If you're using the web version:\n"
-        "• Use a CORS-enabled playlist (like the demo playlist)\n"
-        "• For private playlists, use the mobile/desktop app instead\n\n"
-        "Original error: $e"
-      );
-    } catch (e) {
-      developer.log("Fetch failed: $e");
-      rethrow;
+abstract final class HttpService {
+  /// Downloads the raw playlist bytes from [url]
+  ///
+  /// Throws a [FormatException] if [url] is not an absolute http(s) URL and
+  /// an [HttpStatusException] if the server doesn't respond with success.
+  static Future<Uint8List> fetchPlaylist(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null ||
+        !(uri.isScheme("http") || uri.isScheme("https")) ||
+        uri.host.isEmpty) {
+      throw FormatException("Expected an http(s) URL", url);
     }
+
+    Logger.network("Fetching playlist from: $uri");
+    final response = await http.get(uri);
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw HttpStatusException(response.statusCode, response.reasonPhrase);
+    }
+
+    // Return bytes rather than `response.body`, which falls back to Latin-1
+    // when the server doesn't send a charset. Playlists are UTF-8.
+    return response.bodyBytes;
   }
 }

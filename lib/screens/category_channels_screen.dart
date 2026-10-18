@@ -1,52 +1,46 @@
 import "package:flutter/material.dart";
 import "package:flutter_hooks/flutter_hooks.dart";
 import "package:go_router/go_router.dart";
-import "package:hooks_riverpod/hooks_riverpod.dart";
 import "package:streamhub/models/channel.dart";
+import "package:streamhub/widgets/channel_logo.dart";
 
 /// Screen showing channels within a specific category
-class CategoryChannelsScreen extends HookConsumerWidget {
+class CategoryChannelsScreen extends HookWidget {
   const CategoryChannelsScreen({
-    required this.categoryName,
-    required this.channels,
+    required this.category,
     super.key,
   });
 
-  final String categoryName;
-  final List<Channel> channels;
+  final ChannelCategory category;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final searchQuery = useState("");
     final sortByName = useState(true);
 
     // Filter and sort channels
     final displayChannels = useMemoized(() {
-      var filtered = channels;
+      final query = searchQuery.value.trim().toLowerCase();
+      final channels = [
+        for (final channel in category.channels)
+          if (channel.name.toLowerCase().contains(query)) channel,
+      ];
 
-      // Apply search filter
-      if (searchQuery.value.isNotEmpty) {
-        final query = searchQuery.value.toLowerCase();
-        filtered = filtered.where((channel) {
-          return channel.name.toLowerCase().contains(query);
-        }).toList();
-      }
-
-      // Sort channels
-      final sorted = List<Channel>.from(filtered);
       if (sortByName.value) {
-        sorted.sort((a, b) => a.name.compareTo(b.name));
+        channels.sort(
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
       }
 
-      return sorted;
-    }, [channels, searchQuery.value, sortByName.value]);
+      return channels;
+    }, [category, searchQuery.value, sortByName.value]);
 
     return Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(categoryName),
+            Text(category.name),
             Text(
               "${displayChannels.length} channels",
               style: const TextStyle(fontSize: 14),
@@ -54,10 +48,6 @@ class CategoryChannelsScreen extends HookConsumerWidget {
           ],
         ),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go("/categories"),
-        ),
         actions: [
           IconButton(
             icon: Icon(sortByName.value ? Icons.sort_by_alpha : Icons.sort),
@@ -97,17 +87,7 @@ class CategoryChannelsScreen extends HookConsumerWidget {
                       final channel = displayChannels[index];
 
                       return ListTile(
-                        leading: channel.tvgLogo != null
-                            ? Image.network(
-                                channel.tvgLogo!,
-                                width: 48,
-                                height: 48,
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const Icon(Icons.tv);
-                                },
-                              )
-                            : const Icon(Icons.tv),
+                        leading: ChannelLogo(url: channel.tvgLogo, size: 48),
                         title: Text(channel.name),
                         subtitle: Text(
                           channel.url,
@@ -115,14 +95,14 @@ class CategoryChannelsScreen extends HookConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                         trailing: const Icon(Icons.play_circle_outline),
-                        onTap: () async {
-                          // Navigate to video player
-                          await context.push("/video-player", extra: channel);
-                        },
+                        onTap: () =>
+                            context.push("/video-player", extra: channel),
                       );
                     },
                   ),

@@ -2,5 +2,4 @@
 library channel_categorizer;
 
 export "src/categorizer_interface.dart";
-export "src/category_node.dart";
 export "src/default_categorizer.dart";

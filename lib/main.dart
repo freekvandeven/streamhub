@@ -3,17 +3,18 @@ import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:flutter_native_splash/flutter_native_splash.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
 import "package:streamhub/router/app_router.dart";
+import "package:streamhub/services/playlist_storage.dart";
 
 Future<void> main() async {
-  // Preserve splash screen until Flutter is ready
+  // Keep the native splash screen visible while initializing
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  // Load environment variables (quick operation)
   await dotenv.load(fileName: "dotenv");
+  await PlaylistStorage.init();
 
-  // Run app - splash will be removed in LoadingScreen
   runApp(const ProviderScope(child: MyApp()));
+  FlutterNativeSplash.remove();
 }
 
 class MyApp extends ConsumerWidget {
@@ -27,7 +28,6 @@ class MyApp extends ConsumerWidget {
       title: "StreamHub",
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
       ),
       routerConfig: router,
     );
