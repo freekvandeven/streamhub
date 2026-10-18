@@ -1,7 +1,7 @@
-import "package:flutter/material.dart";
 import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:flutter_native_splash/flutter_native_splash.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
+import "package:material_ui/material_ui.dart";
 import "package:streamhub/router/app_router.dart";
 import "package:streamhub/services/playlist_storage.dart";
 
@@ -30,6 +30,11 @@ class MyApp extends ConsumerWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
       routerConfig: router,
+      // chewie still uses package:flutter/material.dart, so its controls and
+      // fullscreen route need the legacy Theme and MaterialLocalizations.
+      // Remove once chewie has migrated to material_ui.
+      // ignore: deprecated_member_use
+      builder: (context, child) => MaterialUiCompatibilityBridge(child: child!),
     );
   }
 }

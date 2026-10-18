@@ -1,10 +1,12 @@
 import "dart:io";
 
-import "package:flutter/material.dart";
+// Legacy Material, as still used by packages like chewie
+import "package:flutter/material.dart" as legacy;
 import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:hive/hive.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
+import "package:material_ui/material_ui.dart";
 import "package:streamhub/main.dart";
 import "package:streamhub/models/channel.dart";
 import "package:streamhub/models/playlist.dart";
@@ -124,5 +126,29 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text("Search categories..."), findsOneWidget);
+  });
+
+  testWidgets("Uses Material page routes", (WidgetTester tester) async {
+    await tester.pumpWidget(const ProviderScope(child: MyApp()));
+    await tester.pumpAndSettle();
+
+    // go_router only builds Material pages (with their transitions) when it
+    // finds a material_ui MaterialApp above it
+    final route = ModalRoute.of(tester.element(find.byType(HomeScreen)));
+    expect(route, isA<MaterialRouteTransitionMixin<dynamic>>());
+  });
+
+  testWidgets("Provides legacy Material theme and localizations", (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: MyApp()));
+    await tester.pumpAndSettle();
+
+    final context = tester.element(find.byType(HomeScreen));
+    expect(legacy.MaterialLocalizations.of(context), isNotNull);
+    expect(
+      legacy.Theme.of(context).colorScheme.primary,
+      Theme.of(context).colorScheme.primary,
+    );
   });
 }
