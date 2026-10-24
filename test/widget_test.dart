@@ -6,10 +6,12 @@ import "package:flutter_test/flutter_test.dart";
 import "package:hive/hive.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
 import "package:material_ui/material_ui.dart";
+import "package:package_info_plus/package_info_plus.dart";
 import "package:streamhub/main.dart";
 import "package:streamhub/models/channel.dart";
 import "package:streamhub/models/playlist.dart";
 import "package:streamhub/screens/home_screen.dart";
+import "package:streamhub/screens/settings_screen.dart";
 import "package:streamhub/services/playlist_storage.dart";
 
 Future<void> _savePlaylist() {
@@ -148,5 +150,19 @@ void main() {
       legacy.Theme.of(context).colorScheme.primary,
       Theme.of(context).colorScheme.primary,
     );
+  });
+
+  testWidgets("Shows the app version in settings", (WidgetTester tester) async {
+    PackageInfo.setMockInitialValues(
+      appName: "StreamHub",
+      packageName: "com.streamhub.app",
+      version: "1.2.3",
+      buildNumber: "4",
+      buildSignature: "",
+    );
+    await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
+    await tester.pumpAndSettle();
+
+    expect(find.text("1.2.3 (4)"), findsOneWidget);
   });
 }

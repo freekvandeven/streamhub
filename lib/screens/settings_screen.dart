@@ -1,11 +1,15 @@
+import "package:flutter_hooks/flutter_hooks.dart";
 import "package:go_router/go_router.dart";
 import "package:material_ui/material_ui.dart";
+import "package:package_info_plus/package_info_plus.dart";
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends HookWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final packageInfo = useFuture(useMemoized(PackageInfo.fromPlatform)).data;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Settings"),
@@ -43,10 +47,12 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
           ),
-          const ListTile(
-            leading: Icon(Icons.info_outline),
-            title: Text("Version"),
-            subtitle: Text("1.0.0"),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text("Version"),
+            subtitle: Text(
+              packageInfo == null ? "" : "${packageInfo.version} (${packageInfo.buildNumber})",
+            ),
           ),
         ],
       ),
