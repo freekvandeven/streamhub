@@ -89,7 +89,7 @@ class CategoryChannelsScreen extends HookWidget {
                         leading: ChannelLogo(url: channel.tvgLogo, size: 48),
                         title: Text(channel.name),
                         subtitle: Text(
-                          channel.url,
+                          channel.streamHost,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(

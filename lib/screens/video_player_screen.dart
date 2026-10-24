@@ -115,7 +115,7 @@ class VideoPlayerScreen extends HookWidget {
       body = _PlaybackError(
         title: "Failed to Load Stream",
         message: message,
-        details: "URL: ${channel.url}",
+        details: "Server: ${channel.streamHost}",
       );
     } else if (chewieController.value case final controller?) {
       body = Chewie(controller: controller);

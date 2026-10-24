@@ -27,6 +27,10 @@ class Channel {
   final String? tvgLogo;
   final String? groupTitle;
 
+  /// Host of the stream URL, for display. The full URL isn't shown because the
+  /// path of IPTV stream URLs often contains account credentials.
+  String get streamHost => Uri.tryParse(url)?.host ?? "";
+
   Map<String, dynamic> toJson() {
     return {
       "name": name,
