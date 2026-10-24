@@ -58,6 +58,8 @@ flutter test
 ## Platforms
 
 - **Mobile/Desktop**: Works with any playlist
+- **Windows/Linux**: Video plays through [fvp](https://pub.dev/packages/fvp)
+  (FFmpeg-based), since `video_player` has no implementation there
 - **Web**: Requires CORS-enabled playlists
 
 ## License

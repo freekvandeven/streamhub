@@ -24,6 +24,7 @@ dependencies:
   channel_categorizer:
     path: packages/channel_categorizer
   firebase_core: ^5.1.0
+  fvp: ^0.39.1
 
 dev_dependencies:
   flutter_test:

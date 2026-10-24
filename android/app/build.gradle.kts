@@ -32,6 +32,14 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    packaging {
+        jniLibs {
+            // fvp only plays video on Windows and Linux; Android uses the official
+            // video_player implementation, so leave out its ~45 MB of native libraries
+            excludes += listOf("**/libffmpeg.so", "**/libmdk.so", "**/libfvp.so", "**/libass.so", "**/libc++_shared.so")
+        }
+    }
 }
 
 kotlin {
