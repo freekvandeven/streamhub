@@ -31,7 +31,6 @@ dev_dependencies:
   flutter_iconica_analysis:
     hosted: https://forgejo.internal.iconica.nl/api/packages/internal/pub
     version: ^10.0.0
-  environment_config: ^4.1.2
   flutter_launcher_icons: ^0.14.4
   image: ^4.12.0
 
