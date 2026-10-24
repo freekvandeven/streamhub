@@ -12,6 +12,7 @@ import "package:streamhub/models/channel.dart";
 import "package:streamhub/models/playlist.dart";
 import "package:streamhub/screens/home_screen.dart";
 import "package:streamhub/screens/settings_screen.dart";
+import "package:streamhub/screens/video_player_screen.dart";
 import "package:streamhub/services/playlist_storage.dart";
 
 Future<void> _savePlaylist() {
@@ -164,5 +165,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text("1.2.3 (4)"), findsOneWidget);
+  });
+
+  testWidgets("Shows an error when a stream can't be loaded", (WidgetTester tester) async {
+    // video_player has no platform implementation in tests, so loading fails
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: VideoPlayerScreen(
+          channel: Channel(name: "Test", url: "https://example.com/stream.m3u8"),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text("Failed to Load Stream"), findsOneWidget);
   });
 }

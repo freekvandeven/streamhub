@@ -82,7 +82,9 @@ class VideoPlayerScreen extends HookWidget {
             ),
           );
           chewieController.value = chewie;
-        } on Exception catch (e) {
+        } on Object catch (e) {
+          // Show any failure, including platforms without a video_player
+          // implementation, instead of loading forever
           if (!disposed) errorMessage.value = e.toString();
         }
       }
