@@ -41,9 +41,8 @@ The Android and web apps are registered in the `streamhub-pro` Firebase project.
 - `deploy_android.sh` uploads a release APK to App Distribution, for the
   `testers` group.
 
-To add a platform, for example iOS once it has its own bundle ID, rerun
-FlutterFire with all platforms and update `_isFirebaseConfigured` in
-`lib/main.dart`:
+To add a platform, for example iOS (which needs a Mac), rerun FlutterFire
+with all platforms and update `_isFirebaseConfigured` in `lib/main.dart`:
 
 ```bash
 flutterfire configure --project=streamhub-pro --platforms=android,web,ios
