@@ -2,6 +2,7 @@ import "package:flutter_hooks/flutter_hooks.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
 import "package:material_ui/material_ui.dart";
 import "package:streamhub/providers/playlists_provider.dart";
+import "package:streamhub/utils/formatting.dart";
 
 /// Prefills the URL field during development, e.g.
 /// `flutter run --dart-define-from-file=dotenv`. Only builds that pass it
@@ -180,7 +181,7 @@ class PlaylistSettingsScreen extends HookConsumerWidget {
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text("${playlist.channels.length} channels"),
+                                Text(formatChannelCount(playlist.channels.length)),
                                 Text(
                                   "Updated: ${_formatDateTime(
                                     playlist.lastUpdate,

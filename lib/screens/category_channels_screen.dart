@@ -2,6 +2,7 @@ import "package:flutter_hooks/flutter_hooks.dart";
 import "package:go_router/go_router.dart";
 import "package:material_ui/material_ui.dart";
 import "package:streamhub/models/channel.dart";
+import "package:streamhub/utils/formatting.dart";
 import "package:streamhub/widgets/channel_logo.dart";
 
 /// Screen showing channels within a specific category
@@ -42,7 +43,7 @@ class CategoryChannelsScreen extends HookWidget {
           children: [
             Text(category.name),
             Text(
-              "${displayChannels.length} channels",
+              formatChannelCount(displayChannels.length),
               style: const TextStyle(fontSize: 14),
             ),
           ],

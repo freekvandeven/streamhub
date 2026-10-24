@@ -4,6 +4,7 @@ import "package:hooks_riverpod/hooks_riverpod.dart";
 import "package:material_ui/material_ui.dart";
 import "package:streamhub/models/channel.dart";
 import "package:streamhub/providers/playlists_provider.dart";
+import "package:streamhub/utils/formatting.dart";
 
 class HomeScreen extends HookConsumerWidget {
   const HomeScreen({super.key});
@@ -180,7 +181,7 @@ class _CategoryTile extends StatelessWidget {
           category.name,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
-        subtitle: Text("${category.channels.length} channels"),
+        subtitle: Text(formatChannelCount(category.channels.length)),
         trailing: const Icon(Icons.chevron_right),
         onTap: () => context.push("/category-channels", extra: category),
       ),
