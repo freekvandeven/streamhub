@@ -14,9 +14,19 @@ A cross-platform M3U playlist player built with Flutter.
 
 ```bash
 flutter pub get
-echo "PLAYLIST_URL=https://your-playlist.m3u" > dotenv
 flutter run
 ```
+
+To prefill the playlist URL field while developing, put it in a `dotenv` file
+(it's gitignored) and pass that to the build:
+
+```bash
+echo "PLAYLIST_URL=https://your-playlist.m3u" > dotenv
+flutter run --dart-define-from-file=dotenv
+```
+
+The value is compiled into that build, so don't pass it to builds you share or
+deploy.
 
 ## Test Playlists
 

@@ -1,16 +1,20 @@
-import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:flutter_hooks/flutter_hooks.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
 import "package:material_ui/material_ui.dart";
 import "package:streamhub/providers/playlists_provider.dart";
+
+/// Prefills the URL field during development, e.g.
+/// `flutter run --dart-define-from-file=dotenv`. Only builds that pass it
+/// contain the value, so builds for others never ship a personal playlist URL.
+// ignore: do_not_use_environment
+const _defaultPlaylistUrl = String.fromEnvironment("PLAYLIST_URL");
 
 class PlaylistSettingsScreen extends HookConsumerWidget {
   const PlaylistSettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final defaultUrl = dotenv.env["PLAYLIST_URL"] ?? "";
-    final urlController = useTextEditingController(text: defaultUrl);
+    final urlController = useTextEditingController(text: _defaultPlaylistUrl);
     final nameController = useTextEditingController();
     final playlistsState = ref.watch(playlistsProvider);
     final colorScheme = Theme.of(context).colorScheme;

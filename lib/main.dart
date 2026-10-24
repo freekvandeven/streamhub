@@ -1,6 +1,5 @@
 import "package:firebase_core/firebase_core.dart";
 import "package:flutter/foundation.dart";
-import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:flutter_native_splash/flutter_native_splash.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
 import "package:material_ui/material_ui.dart";
@@ -20,7 +19,6 @@ Future<void> main() async {
   if (_isFirebaseConfigured) {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   }
-  await dotenv.load(fileName: "dotenv");
   await PlaylistStorage.init();
 
   runApp(const ProviderScope(child: MyApp()));

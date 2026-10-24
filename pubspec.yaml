@@ -15,7 +15,6 @@ dependencies:
   flutter_hooks: ^0.21.3+1
   hooks_riverpod: ^3.4.3
   http: ^1.6.0
-  flutter_dotenv: ^6.0.1
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   flutter_native_splash: ^2.4.8
@@ -38,8 +37,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  assets:
-    - dotenv
 
 flutter_native_splash:
   color: "#667eea"

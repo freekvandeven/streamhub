@@ -2,7 +2,6 @@ import "dart:io";
 
 // Legacy Material, as still used by packages like chewie
 import "package:flutter/material.dart" as legacy;
-import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:hive/hive.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
@@ -33,7 +32,6 @@ void main() {
   late Directory hiveDir;
 
   setUpAll(() async {
-    dotenv.loadFromString(envString: "PLAYLIST_URL=");
     hiveDir = await Directory.systemTemp.createTemp("streamhub_widget_");
     Hive.init(hiveDir.path);
   });
