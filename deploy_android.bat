@@ -1,4 +1,8 @@
 @echo off
+
+rem Firebase App ID of the Android app in the streamhub-pro project
+set FIREBASE_APP_ID=1:419674510389:android:877f11c87bbeab4c784d7c
+
 echo Building Android APK...
 flutter build apk --release
 
@@ -10,12 +14,9 @@ if not exist build\app\outputs\flutter-apk\app-release.apk (
 echo.
 echo Uploading to Firebase App Distribution...
 echo.
-echo NOTE: You need to replace YOUR_APP_ID in this script with your actual Firebase App ID
-echo Get it from: https://console.firebase.google.com/project/streamhub-pro/settings/general
-echo.
 
 firebase appdistribution:distribute build\app\outputs\flutter-apk\app-release.apk ^
-  --app YOUR_APP_ID ^
+  --app %FIREBASE_APP_ID% ^
   --groups testers ^
   --release-notes "StreamHub Android build - %date% %time%"
 
@@ -26,10 +27,11 @@ if %ERRORLEVEL% EQU 0 (
 ) else (
     echo.
     echo ERROR: Upload failed. Make sure:
-    echo 1. You've registered your Android app in Firebase Console
-    echo 2. You've replaced YOUR_APP_ID in this script with your actual App ID
-    echo 3. You've created the "testers" group: firebase appdistribution:group:create testers
-    echo 4. google-services.json is in android/app/ directory
+    echo 1. App Distribution is enabled: open
+    echo    https://console.firebase.google.com/project/streamhub-pro/appdistribution
+    echo    and click "Get started"
+    echo 2. The "testers" group exists:
+    echo    firebase appdistribution:groups:create Testers testers
     echo.
-    echo See FIREBASE_ANDROID_SETUP.md for detailed instructions.
+    exit /b 1
 )
