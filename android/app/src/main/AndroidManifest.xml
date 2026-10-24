@@ -2,10 +2,13 @@
     <!-- Required for network requests -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Playlists and streams come from arbitrary hosts, and many only offer
+         plain HTTP, which Android blocks by default -->
     <application
         android:label="StreamHub"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
