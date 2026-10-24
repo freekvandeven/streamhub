@@ -18,6 +18,18 @@ echo "PLAYLIST_URL=https://your-playlist.m3u" > dotenv
 flutter run
 ```
 
+## Test Playlists
+
+Legal, free playlists to try the app with:
+
+- [`samples/test_playlist.m3u`](samples/test_playlist.m3u): a few openly
+  licensed films (Blender Foundation, CC BY) and public test streams.
+  Load it from
+  `https://raw.githubusercontent.com/freekvandeven/streamhub/master/samples/test_playlist.m3u`.
+- [Free-TV/IPTV](https://github.com/Free-TV/IPTV): about 2,000 channels that
+  broadcasters offer for free. Load it from
+  `https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8`.
+
 ## Tests
 
 ```bash
