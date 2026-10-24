@@ -20,13 +20,21 @@ class VideoPlayerScreen extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Incremented to recreate the player after an error
+    final attempt = useState(0);
     final videoPlayerController = useMemoized(
       () => VideoPlayerController.networkUrl(Uri.parse(channel.url)),
-      [channel.url],
+      [channel.url, attempt.value],
     );
 
     final chewieController = useState<ChewieController?>(null);
     final errorMessage = useState<String?>(null);
+
+    void retry() {
+      chewieController.value = null;
+      errorMessage.value = null;
+      attempt.value++;
+    }
 
     // Capture theme colors before async operations
     final primaryColor = Theme.of(context).colorScheme.primary;
@@ -79,6 +87,7 @@ class VideoPlayerScreen extends HookWidget {
             errorBuilder: (context, errorMessage) => _PlaybackError(
               title: "Playback Error",
               message: errorMessage,
+              onRetry: retry,
             ),
           );
           chewieController.value = chewie;
@@ -118,6 +127,7 @@ class VideoPlayerScreen extends HookWidget {
         title: "Failed to Load Stream",
         message: message,
         details: "Server: ${channel.streamHost}",
+        onRetry: retry,
       );
     } else if (chewieController.value case final controller?) {
       body = Chewie(controller: controller);
@@ -171,12 +181,14 @@ class _PlaybackError extends StatelessWidget {
   const _PlaybackError({
     required this.title,
     required this.message,
+    required this.onRetry,
     this.details,
   });
 
   final String title;
   final String message;
   final String? details;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -226,10 +238,22 @@ class _PlaybackError extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => context.pop(),
-              icon: const Icon(Icons.arrow_back),
-              label: const Text("Go Back"),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () => context.pop(),
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text("Go Back"),
+                ),
+                FilledButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text("Retry"),
+                ),
+              ],
             ),
           ],
         ),

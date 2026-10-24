@@ -167,7 +167,7 @@ void main() {
     expect(find.text("1.2.3 (4)"), findsOneWidget);
   });
 
-  testWidgets("Shows an error when a stream can't be loaded", (WidgetTester tester) async {
+  testWidgets("Retries a stream that failed to load", (WidgetTester tester) async {
     // video_player has no platform implementation in tests, so loading fails
     await tester.pumpWidget(
       const MaterialApp(
@@ -176,6 +176,13 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
+    expect(find.text("Failed to Load Stream"), findsOneWidget);
+
+    await tester.tap(find.text("Retry"));
+    await tester.pump();
+    expect(find.text("Loading stream..."), findsOneWidget);
+
     await tester.pumpAndSettle();
     expect(find.text("Failed to Load Stream"), findsOneWidget);
   });
