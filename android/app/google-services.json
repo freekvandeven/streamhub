@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "419674510389",
+    "project_id": "streamhub-pro",
+    "storage_bucket": "streamhub-pro.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:419674510389:android:877f11c87bbeab4c784d7c",
+        "android_client_info": {
+          "package_name": "com.streamhub.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATvbBuvxE0MtazfqLjHsM6CVnQ5OsIyyg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

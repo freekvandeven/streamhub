@@ -23,6 +23,7 @@ dependencies:
   chewie: ^1.17.2
   channel_categorizer:
     path: packages/channel_categorizer
+  firebase_core: ^5.1.0
 
 dev_dependencies:
   flutter_test:

@@ -32,5 +32,25 @@
         ]
       }
     ]
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "streamhub-pro",
+          "appId": "1:419674510389:android:877f11c87bbeab4c784d7c",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "streamhub-pro",
+          "configurations": {
+            "android": "1:419674510389:android:877f11c87bbeab4c784d7c",
+            "web": "1:419674510389:web:02f3f773b36a1327784d7c"
+          }
+        }
+      }
+    }
   }
 }
