@@ -6,6 +6,8 @@ A cross-platform M3U playlist player built with Flutter.
 
 - Load M3U playlists from any URL
 - Play live channels, movies, and series
+- Watch up to four streams at once in a split screen, with the audio of the
+  stream you pick
 - Mark channels as favorites, across all playlists
 - Search categories, or channel names across all playlists at once
 - Automatic category grouping for channels without a `group-title`

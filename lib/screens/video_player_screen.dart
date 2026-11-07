@@ -128,6 +128,12 @@ class VideoPlayerScreen extends HookConsumerWidget {
         ),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.splitscreen),
+            tooltip: "Split screen",
+            // Replace the player, so this stream doesn't keep playing underneath
+            onPressed: () => context.pushReplacement("/multi-view", extra: [channel]),
+          ),
           FavoriteButton(channel: channel, isFavorite: isFavorite, color: Colors.white),
         ],
       ),

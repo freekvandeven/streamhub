@@ -25,6 +25,7 @@ dependencies:
   firebase_core: ^5.1.0
   fvp: ^0.39.1
   package_info_plus: ^10.2.2
+  wakelock_plus: ^1.8.2
 
 dev_dependencies:
   flutter_test:

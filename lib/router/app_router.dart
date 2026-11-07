@@ -4,6 +4,7 @@ import "package:streamhub/models/channel.dart";
 import "package:streamhub/screens/category_channels_screen.dart";
 import "package:streamhub/screens/favorites_screen.dart";
 import "package:streamhub/screens/home_screen.dart";
+import "package:streamhub/screens/multi_view_screen.dart";
 import "package:streamhub/screens/playlist_settings_screen.dart";
 import "package:streamhub/screens/settings_screen.dart";
 import "package:streamhub/screens/video_player_screen.dart";
@@ -32,6 +33,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => CategoryChannelsScreen(
           category: state.extra! as ChannelCategory,
         ),
+      ),
+      GoRoute(
+        path: "/multi-view",
+        redirect: (context, state) => state.extra is List<Channel> ? null : "/",
+        builder: (context, state) => MultiViewScreen(initialChannels: state.extra! as List<Channel>),
       ),
       GoRoute(
         path: "/video-player",

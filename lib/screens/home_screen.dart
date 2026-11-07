@@ -86,6 +86,11 @@ class HomeScreen extends HookConsumerWidget {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           IconButton(
+            icon: const Icon(Icons.splitscreen),
+            tooltip: "Split screen",
+            onPressed: () => context.push("/multi-view", extra: <Channel>[]),
+          ),
+          IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () => context.push("/settings"),
             tooltip: "Settings",
