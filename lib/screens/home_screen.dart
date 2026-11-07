@@ -3,6 +3,7 @@ import "package:go_router/go_router.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
 import "package:material_ui/material_ui.dart";
 import "package:streamhub/models/channel.dart";
+import "package:streamhub/providers/channel_search_provider.dart";
 import "package:streamhub/providers/favorites_provider.dart";
 import "package:streamhub/providers/playlists_provider.dart";
 import "package:streamhub/utils/formatting.dart";
@@ -50,32 +51,12 @@ class HomeScreen extends HookConsumerWidget {
       return categories.where((c) => c.name.toLowerCase().contains(query)).toList();
     }, [categories, searchQuery.value]);
 
-    // All channels with lowercased names, so a search doesn't lowercase every
-    // name of a large playlist on each keystroke
-    final searchableChannels = useMemoized(
-      () => [
-        for (final category in categories)
-          for (final channel in category.channels) (channel: channel, name: channel.name.toLowerCase()),
-      ],
-      [categories],
+    // Channels in all playlists matching the search
+    final searchableChannels = ref.watch(searchableChannelsProvider);
+    final matchingChannels = useMemoized(
+      () => searchingChannels ? searchChannels(searchableChannels, searchQuery.value) : const <Channel>[],
+      [searchableChannels, searchQuery.value, searchingChannels],
     );
-
-    // Channels in all playlists matching the search, names starting with it first
-    final matchingChannels = useMemoized(() {
-      final query = searchQuery.value.trim().toLowerCase();
-      if (!searchingChannels || query.isEmpty) return const <Channel>[];
-
-      final startsWith = <Channel>[];
-      final contains = <Channel>[];
-      for (final (:channel, :name) in searchableChannels) {
-        if (name.startsWith(query)) {
-          startsWith.add(channel);
-        } else if (name.contains(query)) {
-          contains.add(channel);
-        }
-      }
-      return [...startsWith, ...contains];
-    }, [searchableChannels, searchQuery.value, searchingChannels]);
 
     final Widget content;
     if (playlistsState.isLoading && channelCount == 0) {
