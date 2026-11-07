@@ -161,6 +161,34 @@ void main() {
     expect(find.text("Sky Sports"), findsNothing);
   });
 
+  testWidgets("Searches channels in all categories", (WidgetTester tester) async {
+    await tester.runAsync(_savePlaylist);
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(home: HomeScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip("Search channel names in all playlists"));
+    await tester.pump();
+    expect(find.text("Type to search channel names in all playlists"), findsOneWidget);
+
+    await tester.enterText(find.widgetWithText(TextField, "Search all channels..."), "s");
+    await tester.pump();
+
+    // Channels from both categories, names starting with the search first
+    final titles = [
+      for (final tile in tester.widgetList<ListTile>(find.byType(ListTile))) (tile.title! as Text).data,
+    ];
+    expect(titles, ["Sky Sports", "ESPN", "BBC News"]);
+    expect(find.text("3 channels found"), findsOneWidget);
+
+    await tester.enterText(find.widgetWithText(TextField, "Search all channels..."), "xyz");
+    await tester.pump();
+    expect(find.text("No channels match your search"), findsOneWidget);
+  });
+
   testWidgets("Uses Material page routes", (WidgetTester tester) async {
     await tester.pumpWidget(const ProviderScope(child: MyApp()));
     await tester.pumpAndSettle();

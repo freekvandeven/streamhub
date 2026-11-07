@@ -6,6 +6,10 @@ import "package:streamhub/models/channel.dart";
 import "package:streamhub/providers/favorites_provider.dart";
 import "package:streamhub/providers/playlists_provider.dart";
 import "package:streamhub/utils/formatting.dart";
+import "package:streamhub/widgets/channel_tile.dart";
+
+/// What the home screen search looks through
+enum _SearchMode { categories, channels }
 
 class HomeScreen extends HookConsumerWidget {
   const HomeScreen({super.key});
@@ -16,6 +20,8 @@ class HomeScreen extends HookConsumerWidget {
     final playlists = playlistsState.playlists;
     final favoriteCount = ref.watch(favoriteChannelsProvider).length;
     final searchQuery = useState("");
+    final searchMode = useState(_SearchMode.categories);
+    final searchingChannels = searchMode.value == _SearchMode.channels;
 
     // Group channels from all playlists by category, largest first
     final categories = useMemoized(() {
@@ -44,11 +50,43 @@ class HomeScreen extends HookConsumerWidget {
       return categories.where((c) => c.name.toLowerCase().contains(query)).toList();
     }, [categories, searchQuery.value]);
 
+    // All channels with lowercased names, so a search doesn't lowercase every
+    // name of a large playlist on each keystroke
+    final searchableChannels = useMemoized(
+      () => [
+        for (final category in categories)
+          for (final channel in category.channels) (channel: channel, name: channel.name.toLowerCase()),
+      ],
+      [categories],
+    );
+
+    // Channels in all playlists matching the search, names starting with it first
+    final matchingChannels = useMemoized(() {
+      final query = searchQuery.value.trim().toLowerCase();
+      if (!searchingChannels || query.isEmpty) return const <Channel>[];
+
+      final startsWith = <Channel>[];
+      final contains = <Channel>[];
+      for (final (:channel, :name) in searchableChannels) {
+        if (name.startsWith(query)) {
+          startsWith.add(channel);
+        } else if (name.contains(query)) {
+          contains.add(channel);
+        }
+      }
+      return [...startsWith, ...contains];
+    }, [searchableChannels, searchQuery.value, searchingChannels]);
+
     final Widget content;
     if (playlistsState.isLoading && channelCount == 0) {
       content = const Center(child: CircularProgressIndicator());
     } else if (channelCount == 0) {
       content = const _EmptyState();
+    } else if (searchingChannels) {
+      content = _ChannelResults(
+        channels: matchingChannels,
+        hasQuery: searchQuery.value.trim().isNotEmpty,
+      );
     } else {
       // Favorites come first, unless searching for a category
       final showFavorites = searchQuery.value.trim().isEmpty;
@@ -77,19 +115,43 @@ class HomeScreen extends HookConsumerWidget {
         children: [
           // Search bar
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: TextField(
-              decoration: const InputDecoration(
-                hintText: "Search categories...",
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: searchingChannels ? "Search all channels..." : "Search categories...",
+                prefixIcon: const Icon(Icons.search),
+                border: const OutlineInputBorder(),
               ),
               onChanged: (value) => searchQuery.value = value,
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<_SearchMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: _SearchMode.categories,
+                    icon: Icon(Icons.category),
+                    label: Text("Categories"),
+                    tooltip: "Search category names",
+                  ),
+                  ButtonSegment(
+                    value: _SearchMode.channels,
+                    icon: Icon(Icons.tv),
+                    label: Text("Channels"),
+                    tooltip: "Search channel names in all playlists",
+                  ),
+                ],
+                selected: {searchMode.value},
+                onSelectionChanged: (selection) => searchMode.value = selection.first,
+              ),
+            ),
+          ),
 
           // Summary stats
-          if (channelCount > 0)
+          if (channelCount > 0 && !searchingChannels)
             Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 16.0,
@@ -161,6 +223,48 @@ class _EmptyState extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Channel search results from all playlists
+class _ChannelResults extends StatelessWidget {
+  const _ChannelResults({required this.channels, required this.hasQuery});
+
+  final List<Channel> channels;
+  final bool hasQuery;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!hasQuery || channels.isEmpty) {
+      return Center(
+        child: Text(
+          hasQuery ? "No channels match your search" : "Type to search channel names in all playlists",
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Text(
+            "${formatChannelCount(channels.length)} found",
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            itemCount: channels.length,
+            itemBuilder: (context, index) {
+              final channel = channels[index];
+              return ChannelTile(channel: channel, subtitle: channel.groupTitle ?? "");
+            },
+          ),
+        ),
+      ],
     );
   }
 }

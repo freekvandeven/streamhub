@@ -7,7 +7,7 @@ A cross-platform M3U playlist player built with Flutter.
 - Load M3U playlists from any URL
 - Play live channels, movies, and series
 - Mark channels as favorites, across all playlists
-- Search and filter categories and channels
+- Search categories, or channel names across all playlists at once
 - Automatic category grouping for channels without a `group-title`
 - Clean architecture with Riverpod
 
