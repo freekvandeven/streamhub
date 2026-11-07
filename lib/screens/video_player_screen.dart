@@ -4,13 +4,16 @@ import "package:chewie/chewie.dart";
 import "package:flutter/services.dart";
 import "package:flutter_hooks/flutter_hooks.dart";
 import "package:go_router/go_router.dart";
+import "package:hooks_riverpod/hooks_riverpod.dart";
 import "package:material_ui/material_ui.dart";
 import "package:streamhub/models/channel.dart";
+import "package:streamhub/providers/favorites_provider.dart";
 import "package:streamhub/widgets/channel_logo.dart";
+import "package:streamhub/widgets/channel_tile.dart";
 import "package:video_player/video_player.dart";
 
 /// Video player screen for live channels, movies, and TV series
-class VideoPlayerScreen extends HookWidget {
+class VideoPlayerScreen extends HookConsumerWidget {
   const VideoPlayerScreen({
     required this.channel,
     super.key,
@@ -19,7 +22,11 @@ class VideoPlayerScreen extends HookWidget {
   final Channel channel;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isFavorite = ref.watch(
+      favoritesProvider.select((favorites) => favorites.contains(channel.favoriteKey)),
+    );
+
     // Incremented to recreate the player after an error
     final attempt = useState(0);
     final videoPlayerController = useMemoized(
@@ -171,6 +178,9 @@ class VideoPlayerScreen extends HookWidget {
           ],
         ),
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          FavoriteButton(channel: channel, isFavorite: isFavorite, color: Colors.white),
+        ],
       ),
       body: Center(child: body),
     );

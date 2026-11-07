@@ -31,6 +31,10 @@ class Channel {
   /// path of IPTV stream URLs often contains account credentials.
   String get streamHost => Uri.tryParse(url)?.host ?? "";
 
+  /// Identifies the channel in favorites. Uses the category and name rather
+  /// than the URL, which changes when a provider's credentials change.
+  String get favoriteKey => "${groupTitle ?? ""}\u001F$name";
+
   Map<String, dynamic> toJson() {
     return {
       "name": name,

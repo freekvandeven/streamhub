@@ -1,4 +1,5 @@
 import "dart:io";
+import "dart:typed_data";
 
 // Legacy Material, as still used by packages like chewie
 import "package:flutter/material.dart" as legacy;
@@ -40,11 +41,17 @@ void main() {
   });
 
   setUp(() async {
-    final box = await Hive.openBox<dynamic>("playlists");
-    await box.clear();
+    // Open the boxes up front: widget tests can't wait for real file IO
+    final playlists = await Hive.openBox<dynamic>("playlists");
+    await playlists.clear();
+    // Favorites are written from the UI, so keep them in memory
+    final favorites = await Hive.openBox<dynamic>("favorites", bytes: Uint8List(0));
+    await favorites.clear();
   });
 
   tearDownAll(() async {
+    // The in-memory box has nothing on disk to delete
+    await Hive.box<dynamic>("favorites").close();
     await Hive.deleteFromDisk();
     await hiveDir.delete(recursive: true);
   });
@@ -129,6 +136,31 @@ void main() {
     expect(find.text("Search categories..."), findsOneWidget);
   });
 
+  testWidgets("Adds a channel to favorites", (WidgetTester tester) async {
+    await tester.runAsync(_savePlaylist);
+    await tester.pumpWidget(const ProviderScope(child: MyApp()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text("Sports"));
+    await tester.pumpAndSettle();
+    final espn = find.widgetWithText(ListTile, "ESPN");
+    await tester.tap(find.descendant(of: espn, matching: find.byTooltip("Add to favorites")));
+    await tester.pump();
+    expect(find.descendant(of: espn, matching: find.byIcon(Icons.star)), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: find.widgetWithText(Card, "Favorites"), matching: find.text("1 channel")),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text("Favorites"));
+    await tester.pumpAndSettle();
+    expect(find.text("ESPN"), findsOneWidget);
+    expect(find.text("Sky Sports"), findsNothing);
+  });
+
   testWidgets("Uses Material page routes", (WidgetTester tester) async {
     await tester.pumpWidget(const ProviderScope(child: MyApp()));
     await tester.pumpAndSettle();
@@ -170,9 +202,11 @@ void main() {
   testWidgets("Retries a stream that failed to load", (WidgetTester tester) async {
     // video_player has no platform implementation in tests, so loading fails
     await tester.pumpWidget(
-      const MaterialApp(
-        home: VideoPlayerScreen(
-          channel: Channel(name: "Test", url: "https://example.com/stream.m3u8"),
+      const ProviderScope(
+        child: MaterialApp(
+          home: VideoPlayerScreen(
+            channel: Channel(name: "Test", url: "https://example.com/stream.m3u8"),
+          ),
         ),
       ),
     );

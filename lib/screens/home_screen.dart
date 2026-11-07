@@ -3,6 +3,7 @@ import "package:go_router/go_router.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
 import "package:material_ui/material_ui.dart";
 import "package:streamhub/models/channel.dart";
+import "package:streamhub/providers/favorites_provider.dart";
 import "package:streamhub/providers/playlists_provider.dart";
 import "package:streamhub/utils/formatting.dart";
 
@@ -13,6 +14,7 @@ class HomeScreen extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final playlistsState = ref.watch(playlistsProvider);
     final playlists = playlistsState.playlists;
+    final favoriteCount = ref.watch(favoriteChannelsProvider).length;
     final searchQuery = useState("");
 
     // Group channels from all playlists by category, largest first
@@ -48,9 +50,14 @@ class HomeScreen extends HookConsumerWidget {
     } else if (channelCount == 0) {
       content = const _EmptyState();
     } else {
+      // Favorites come first, unless searching for a category
+      final showFavorites = searchQuery.value.trim().isEmpty;
+      final offset = showFavorites ? 1 : 0;
       content = ListView.builder(
-        itemCount: filteredCategories.length,
-        itemBuilder: (context, index) => _CategoryTile(category: filteredCategories[index]),
+        itemCount: filteredCategories.length + offset,
+        itemBuilder: (context, index) => showFavorites && index == 0
+            ? _FavoritesTile(count: favoriteCount)
+            : _CategoryTile(category: filteredCategories[index - offset]),
       );
     }
 
@@ -153,6 +160,32 @@ class _EmptyState extends StatelessWidget {
             label: const Text("Add Playlist"),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FavoritesTile extends StatelessWidget {
+  const _FavoritesTile({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: ListTile(
+        leading: const CircleAvatar(
+          backgroundColor: Colors.amber,
+          child: Icon(Icons.star, color: Colors.white),
+        ),
+        title: const Text(
+          "Favorites",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        subtitle: Text(formatChannelCount(count)),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => context.push("/favorites"),
       ),
     );
   }

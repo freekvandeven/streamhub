@@ -2,6 +2,7 @@ import "package:go_router/go_router.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
 import "package:streamhub/models/channel.dart";
 import "package:streamhub/screens/category_channels_screen.dart";
+import "package:streamhub/screens/favorites_screen.dart";
 import "package:streamhub/screens/home_screen.dart";
 import "package:streamhub/screens/playlist_settings_screen.dart";
 import "package:streamhub/screens/settings_screen.dart";
@@ -18,6 +19,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: "/settings/playlists",
         builder: (context, state) => const PlaylistSettingsScreen(),
+      ),
+      GoRoute(
+        path: "/favorites",
+        builder: (context, state) => const FavoritesScreen(),
       ),
       // The routes below receive their data through `extra`, which is lost
       // when the page is reloaded on web, so fall back to the home screen.

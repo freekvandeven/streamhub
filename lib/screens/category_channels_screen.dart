@@ -1,18 +1,21 @@
 import "package:flutter_hooks/flutter_hooks.dart";
-import "package:go_router/go_router.dart";
 import "package:material_ui/material_ui.dart";
 import "package:streamhub/models/channel.dart";
 import "package:streamhub/utils/formatting.dart";
-import "package:streamhub/widgets/channel_logo.dart";
+import "package:streamhub/widgets/channel_tile.dart";
 
 /// Screen showing channels within a specific category
 class CategoryChannelsScreen extends HookWidget {
   const CategoryChannelsScreen({
     required this.category,
+    this.emptyMessage = "No channels in this category",
     super.key,
   });
 
   final ChannelCategory category;
+
+  /// Shown when the category has no channels
+  final String emptyMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -76,32 +79,19 @@ class CategoryChannelsScreen extends HookWidget {
           Expanded(
             child: displayChannels.isEmpty
                 ? Center(
-                    child: Text(
-                      searchQuery.value.isEmpty ? "No channels in this category" : "No channels match your search",
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        searchQuery.value.isEmpty ? emptyMessage : "No channels match your search",
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   )
                 : ListView.builder(
                     itemCount: displayChannels.length,
                     itemBuilder: (context, index) {
                       final channel = displayChannels[index];
-
-                      return ListTile(
-                        leading: ChannelLogo(url: channel.tvgLogo, size: 48),
-                        title: Text(channel.name),
-                        subtitle: Text(
-                          channel.streamHost,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        trailing: const Icon(Icons.play_circle_outline),
-                        onTap: () => context.push("/video-player", extra: channel),
-                      );
+                      return ChannelTile(channel: channel, subtitle: channel.streamHost);
                     },
                   ),
           ),
