@@ -26,6 +26,10 @@ class ChannelLogo extends StatelessWidget {
       fit: BoxFit.contain,
       // Logos are often large; decode them at the size they are shown
       cacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).round(),
+      // Show the icon until the logo arrives, which can take long or never
+      // happen on slow logo servers
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) =>
+          frame == null && !wasSynchronouslyLoaded ? fallback : child,
       errorBuilder: (context, error, stackTrace) => fallback,
     );
   }
