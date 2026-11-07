@@ -1,16 +1,13 @@
-import "dart:async";
-
 import "package:chewie/chewie.dart";
-import "package:flutter/services.dart";
 import "package:flutter_hooks/flutter_hooks.dart";
 import "package:go_router/go_router.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
 import "package:material_ui/material_ui.dart";
+import "package:streamhub/hooks/video_hooks.dart";
 import "package:streamhub/models/channel.dart";
 import "package:streamhub/providers/favorites_provider.dart";
 import "package:streamhub/widgets/channel_logo.dart";
 import "package:streamhub/widgets/channel_tile.dart";
-import "package:video_player/video_player.dart";
 
 /// Video player screen for live channels, movies, and TV series
 class VideoPlayerScreen extends HookConsumerWidget {
@@ -27,116 +24,68 @@ class VideoPlayerScreen extends HookConsumerWidget {
       favoritesProvider.select((favorites) => favorites.contains(channel.favoriteKey)),
     );
 
-    // Incremented to recreate the player after an error
-    final attempt = useState(0);
-    final videoPlayerController = useMemoized(
-      () => VideoPlayerController.networkUrl(Uri.parse(channel.url)),
-      [channel.url, attempt.value],
-    );
-
-    final chewieController = useState<ChewieController?>(null);
-    final errorMessage = useState<String?>(null);
-
-    void retry() {
-      chewieController.value = null;
-      errorMessage.value = null;
-      attempt.value++;
-    }
-
-    // Capture theme colors before async operations
+    final stream = useVideoStream(channel.url);
     final primaryColor = Theme.of(context).colorScheme.primary;
 
-    // Initialize video player
-    useEffect(() {
-      var disposed = false;
-      ChewieController? chewie;
+    // Chewie adds the controls around the player once it's ready
+    final chewieController = useMemoized(() {
+      final videoPlayerController = stream.controller;
+      if (videoPlayerController == null) return null;
 
-      Future<void> initializePlayer() async {
-        try {
-          await videoPlayerController.initialize();
-          // The screen may have been closed while the stream was loading
-          if (disposed) return;
-
-          chewie = ChewieController(
-            videoPlayerController: videoPlayerController,
-            autoPlay: true,
-            materialProgressColors: ChewieProgressColors(
-              playedColor: primaryColor,
-              handleColor: primaryColor,
-              backgroundColor: Colors.grey,
-              bufferedColor: primaryColor.withValues(alpha: 0.3),
-            ),
-            placeholder: ColoredBox(
-              color: Colors.black,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ChannelLogo(
-                      url: channel.tvgLogo,
-                      size: 120,
-                      fallbackColor: Colors.white,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      channel.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+      return ChewieController(
+        videoPlayerController: videoPlayerController,
+        autoPlay: true,
+        materialProgressColors: ChewieProgressColors(
+          playedColor: primaryColor,
+          handleColor: primaryColor,
+          backgroundColor: Colors.grey,
+          bufferedColor: primaryColor.withValues(alpha: 0.3),
+        ),
+        placeholder: ColoredBox(
+          color: Colors.black,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ChannelLogo(
+                  url: channel.tvgLogo,
+                  size: 120,
+                  fallbackColor: Colors.white,
                 ),
-              ),
+                const SizedBox(height: 16),
+                Text(
+                  channel.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
-            errorBuilder: (context, errorMessage) => _PlaybackError(
-              title: "Playback Error",
-              message: errorMessage,
-              onRetry: retry,
-            ),
-          );
-          chewieController.value = chewie;
-        } on Object catch (e) {
-          // Show any failure, including platforms without a video_player
-          // implementation, instead of loading forever
-          if (!disposed) errorMessage.value = e.toString();
-        }
-      }
-
-      unawaited(initializePlayer());
-
-      // Cleanup
-      return () {
-        disposed = true;
-        chewie?.dispose();
-        unawaited(videoPlayerController.dispose());
-      };
-    }, [videoPlayerController]);
-
-    // Allow landscape while the player is open, then restore the defaults
-    useEffect(() {
-      unawaited(
-        SystemChrome.setPreferredOrientations([
-          DeviceOrientation.landscapeLeft,
-          DeviceOrientation.landscapeRight,
-          DeviceOrientation.portraitUp,
-        ]),
+          ),
+        ),
+        errorBuilder: (context, errorMessage) => _PlaybackError(
+          title: "Playback Error",
+          message: errorMessage,
+          onRetry: stream.retry,
+        ),
       );
+    }, [stream.controller]);
+    useEffect(() => chewieController?.dispose, [chewieController]);
 
-      return () => unawaited(SystemChrome.setPreferredOrientations([]));
-    }, []);
+    useAllowLandscape();
 
     final Widget body;
-    if (errorMessage.value case final message?) {
+    if (stream.error case final message?) {
       body = _PlaybackError(
         title: "Failed to Load Stream",
         message: message,
         details: "Server: ${channel.streamHost}",
-        onRetry: retry,
+        onRetry: stream.retry,
       );
-    } else if (chewieController.value case final controller?) {
+    } else if (chewieController case final controller?) {
       body = Chewie(controller: controller);
     } else {
       body = const Column(
