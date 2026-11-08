@@ -11,7 +11,9 @@ import "package:package_info_plus/package_info_plus.dart";
 import "package:streamhub/main.dart";
 import "package:streamhub/models/channel.dart";
 import "package:streamhub/models/playlist.dart";
+import "package:streamhub/providers/playlists_provider.dart";
 import "package:streamhub/screens/home_screen.dart";
+import "package:streamhub/screens/playlist_settings_screen.dart";
 import "package:streamhub/screens/settings_screen.dart";
 import "package:streamhub/screens/video_player_screen.dart";
 import "package:streamhub/services/playlist_storage.dart";
@@ -29,6 +31,15 @@ final _playlist = Playlist(
   ],
   lastUpdate: DateTime(2025),
 );
+
+/// Halfway through downloading a playlist
+class _DownloadingNotifier extends PlaylistsNotifier {
+  @override
+  PlaylistsState build() => const PlaylistsState(
+    isLoading: true,
+    downloadProgress: DownloadProgress(receivedBytes: 128 << 20, totalBytes: 256 << 20, channels: 4321),
+  );
+}
 
 /// Runs [child] with playlists kept in memory, optionally with [_playlist]
 Widget _scope(Widget child, {bool withPlaylist = false}) {
@@ -201,6 +212,20 @@ void main() {
       legacy.Theme.of(context).colorScheme.primary,
       Theme.of(context).colorScheme.primary,
     );
+  });
+
+  testWidgets("Shows playlist download progress", (WidgetTester tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [playlistsProvider.overrideWith(_DownloadingNotifier.new)],
+        child: const MaterialApp(home: PlaylistSettingsScreen()),
+      ),
+    );
+
+    expect(find.text("Downloading playlist..."), findsOneWidget);
+    expect(find.text("128.00 MB of 256.00 MB"), findsOneWidget);
+    expect(find.text("4321 channels found"), findsOneWidget);
+    expect(tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator)).value, 0.5);
   });
 
   testWidgets("Shows the app version in settings", (WidgetTester tester) async {

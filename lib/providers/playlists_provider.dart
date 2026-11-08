@@ -10,7 +10,28 @@ import "package:streamhub/services/channel_categorizer.dart";
 import "package:streamhub/services/http_service.dart";
 import "package:streamhub/services/m3u_parser.dart";
 import "package:streamhub/services/playlist_storage.dart";
+import "package:streamhub/utils/formatting.dart";
 import "package:streamhub/utils/logger.dart";
+import "package:streamhub/utils/wakelock.dart";
+
+/// How far a playlist download has come
+class DownloadProgress {
+  const DownloadProgress({this.receivedBytes = 0, this.totalBytes, this.channels = 0});
+
+  final int receivedBytes;
+
+  /// The size of the playlist, if the server reported it
+  final int? totalBytes;
+
+  /// Channels found so far
+  final int channels;
+
+  /// How much has been downloaded, from 0 to 1, or null if the size is unknown
+  double? get fraction {
+    final total = totalBytes;
+    return total == null || total <= 0 ? null : (receivedBytes / total).clamp(0.0, 1.0);
+  }
+}
 
 /// State for playlists management
 class PlaylistsState {
@@ -19,12 +40,16 @@ class PlaylistsState {
     this.activePlaylistId,
     this.isLoading = false,
     this.error,
+    this.downloadProgress,
   });
 
   final List<Playlist> playlists;
   final String? activePlaylistId;
   final bool isLoading;
   final String? error;
+
+  /// Set while a playlist downloads
+  final DownloadProgress? downloadProgress;
 
   Playlist? get activePlaylist => playlists.where((p) => p.id == activePlaylistId).firstOrNull;
 
@@ -34,12 +59,15 @@ class PlaylistsState {
     bool? isLoading,
     String? error,
     bool clearError = false,
+    DownloadProgress? downloadProgress,
+    bool clearDownloadProgress = false,
   }) {
     return PlaylistsState(
       playlists: playlists ?? this.playlists,
       activePlaylistId: activePlaylistId ?? this.activePlaylistId,
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
+      downloadProgress: clearDownloadProgress ? null : (downloadProgress ?? this.downloadProgress),
     );
   }
 }
@@ -87,6 +115,8 @@ class PlaylistsNotifier extends Notifier<PlaylistsState> {
     state = state.copyWith(isLoading: true, clearError: true);
     String? error;
     PlaylistWriter? unfinishedWriter;
+    // Large playlists take minutes; don't let the screen turn off meanwhile
+    unawaited(Wakelock.acquire());
 
     try {
       final existingPlaylist = state.playlists.where((p) => p.url == url).firstOrNull;
@@ -98,7 +128,9 @@ class PlaylistsNotifier extends Notifier<PlaylistsState> {
       }
 
       final stopwatch = Stopwatch()..start();
+      state = state.copyWith(downloadProgress: const DownloadProgress());
       final download = await HttpService.downloadPlaylist(url);
+      state = state.copyWith(downloadProgress: DownloadProgress(totalBytes: download.totalBytes));
       final playlistId = existingPlaylist?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
       final writer = unfinishedWriter = _storage.startWriting(playlistId);
 
@@ -111,15 +143,29 @@ class PlaylistsNotifier extends Notifier<PlaylistsState> {
         writer.add(categorized);
       });
       var receivedBytes = 0;
+      var reportedBytes = 0;
+      final sinceReport = Stopwatch()..start();
       await for (final chunk in download.bytes) {
         parser.add(chunk);
         receivedBytes += chunk.length;
+        // Report progress regularly, but not for every network packet
+        if (sinceReport.elapsedMilliseconds >= 200 || receivedBytes - reportedBytes >= 1 << 20) {
+          sinceReport.reset();
+          reportedBytes = receivedBytes;
+          state = state.copyWith(
+            downloadProgress: DownloadProgress(
+              receivedBytes: receivedBytes,
+              totalBytes: download.totalBytes,
+              channels: channels.length,
+            ),
+          );
+        }
         // Also slows the download down if storage can't keep up
         await writer.flush();
       }
       parser.close();
       Logger.success(
-        "Downloaded ${_formatBytes(receivedBytes)} with ${channels.length} channels in "
+        "Downloaded ${formatBytes(receivedBytes)} with ${channels.length} channels in "
         "${_formatDuration(stopwatch.elapsed)}",
       );
 
@@ -154,7 +200,8 @@ class PlaylistsNotifier extends Notifier<PlaylistsState> {
     } finally {
       // Throw away what was stored of a download that failed partway
       if (unfinishedWriter != null) unawaited(unfinishedWriter.discard());
-      state = state.copyWith(isLoading: false, error: error);
+      state = state.copyWith(isLoading: false, error: error, clearDownloadProgress: true);
+      unawaited(Wakelock.release());
     }
   }
 
@@ -202,18 +249,6 @@ String _describeFetchError(Exception error) {
     FormatException(:final message) => "Invalid URL: $message",
     _ => "Unexpected error: $error",
   };
-}
-
-/// Formats bytes to human-readable string
-String _formatBytes(int bytes) {
-  const units = ["B", "KB", "MB", "GB"];
-  var size = bytes.toDouble();
-  var unit = 0;
-  while (size >= 1024 && unit < units.length - 1) {
-    size /= 1024;
-    unit++;
-  }
-  return unit == 0 ? "$bytes B" : "${size.toStringAsFixed(2)} ${units[unit]}";
 }
 
 String _formatDuration(Duration duration) => "${(duration.inMilliseconds / 1000).toStringAsFixed(2)}s";

@@ -2,9 +2,8 @@ import "dart:async";
 
 import "package:flutter/services.dart";
 import "package:flutter_hooks/flutter_hooks.dart";
-import "package:streamhub/utils/logger.dart";
+import "package:streamhub/utils/wakelock.dart";
 import "package:video_player/video_player.dart";
-import "package:wakelock_plus/wakelock_plus.dart";
 
 /// A stream started with [useVideoStream]: the initialized player (null while
 /// loading or after an error), why loading failed, and a way to try again
@@ -65,18 +64,9 @@ VideoStream useVideoStream(String url, {bool mixWithOthers = false}) {
 /// Keeps the screen on while the calling widget is shown
 void useWakelock() {
   useEffect(() {
-    unawaited(_setWakelock(enabled: true));
-    return () => unawaited(_setWakelock(enabled: false));
+    unawaited(Wakelock.acquire());
+    return () => unawaited(Wakelock.release());
   }, const []);
-}
-
-Future<void> _setWakelock({required bool enabled}) async {
-  try {
-    await WakelockPlus.toggle(enable: enabled);
-  } on Exception catch (e) {
-    // Not available on every platform, nor in tests
-    Logger.warning("Couldn't ${enabled ? "enable" : "disable"} the wakelock: $e");
-  }
 }
 
 /// Allows landscape while the calling widget is shown, then restores the

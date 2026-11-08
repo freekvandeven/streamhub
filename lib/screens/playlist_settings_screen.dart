@@ -275,28 +275,7 @@ class PlaylistSettingsScreen extends HookConsumerWidget {
             ColoredBox(
               color: Colors.black.withValues(alpha: 0.5),
               child: Center(
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const CircularProgressIndicator(),
-                        const SizedBox(height: 16),
-                        Text(
-                          "Loading playlist...",
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          "This may take a moment for large playlists",
-                          style: Theme.of(context).textTheme.bodySmall,
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                child: _LoadingCard(progress: playlistsState.downloadProgress),
               ),
             ),
         ],
@@ -319,5 +298,59 @@ class PlaylistSettingsScreen extends HookConsumerWidget {
     } else {
       return "${dateTime.day}/${dateTime.month}/${dateTime.year}";
     }
+  }
+}
+
+class _LoadingCard extends StatelessWidget {
+  const _LoadingCard({required this.progress});
+
+  /// Set while a playlist downloads; otherwise playlists are loading
+  final DownloadProgress? progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final progress = this.progress;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: SizedBox(
+          width: 300,
+          child: progress == null
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text("Loading playlists...", style: textTheme.titleMedium),
+                  ],
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Downloading playlist...", style: textTheme.titleMedium),
+                    const SizedBox(height: 16),
+                    // Indeterminate when the server didn't report the size
+                    LinearProgressIndicator(value: progress.fraction),
+                    const SizedBox(height: 12),
+                    Text(
+                      switch (progress.totalBytes) {
+                        final total? => "${formatBytes(progress.receivedBytes)} of ${formatBytes(total)}",
+                        null => "${formatBytes(progress.receivedBytes)} downloaded",
+                      },
+                    ),
+                    Text("${formatChannelCount(progress.channels)} found"),
+                    const SizedBox(height: 12),
+                    Text(
+                      "The screen stays on until the playlist is loaded",
+                      style: textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
   }
 }

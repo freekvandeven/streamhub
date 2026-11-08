@@ -51,6 +51,8 @@ void main() {
     });
     final storage = MemoryPlaylistStorage();
     final container = await start(storage);
+    final progress = <DownloadProgress?>[];
+    container.listen(playlistsProvider.select((s) => s.downloadProgress), (_, next) => progress.add(next));
 
     await container.read(playlistsProvider.notifier).fetchPlaylist(url: url, name: "Big");
 
@@ -60,6 +62,13 @@ void main() {
     expect(state.playlists.single.channels, hasLength(20000));
     expect(state.playlists.single.channels.last.name, "Channel 19999");
     expect(storage.playlists.values.single.channels, hasLength(20000));
+
+    // Progress counts up to the size the server reported, and is cleared when done
+    final reported = progress.nonNulls.toList();
+    expect(reported.first.totalBytes, isNull, reason: "while connecting");
+    expect(reported.skip(1).every((p) => p.totalBytes == body.length), isTrue);
+    expect(reported.where((p) => p.receivedBytes > 0 && p.channels > 0), isNotEmpty);
+    expect(progress.last, isNull);
   });
 
   test("keeps the stored playlist when a refresh fails partway", () async {
