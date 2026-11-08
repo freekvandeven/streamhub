@@ -41,6 +41,15 @@ class _DownloadingNotifier extends PlaylistsNotifier {
   );
 }
 
+/// Waiting for the server to start sending a playlist
+class _WaitingNotifier extends PlaylistsNotifier {
+  @override
+  PlaylistsState build() => PlaylistsState(
+    isLoading: true,
+    downloadProgress: DownloadProgress(startedAt: DateTime.now().subtract(const Duration(seconds: 42))),
+  );
+}
+
 /// Runs [child] with playlists kept in memory, optionally with [_playlist]
 Widget _scope(Widget child, {bool withPlaylist = false}) {
   return ProviderScope(
@@ -226,6 +235,20 @@ void main() {
     expect(find.text("128.00 MB of 256.00 MB"), findsOneWidget);
     expect(find.text("4321 channels found"), findsOneWidget);
     expect(tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator)).value, 0.5);
+  });
+
+  testWidgets("Shows that it waits for the server", (WidgetTester tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [playlistsProvider.overrideWith(_WaitingNotifier.new)],
+        child: const MaterialApp(home: PlaylistSettingsScreen()),
+      ),
+    );
+
+    expect(find.text("Waiting for the server..."), findsOneWidget);
+    expect(find.text("Time elapsed: 42 s"), findsOneWidget);
+    expect(find.textContaining("channels found"), findsNothing);
+    expect(tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator)).value, isNull);
   });
 
   testWidgets("Shows the app version in settings", (WidgetTester tester) async {

@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:flutter_hooks/flutter_hooks.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
 import "package:material_ui/material_ui.dart";
@@ -301,7 +303,7 @@ class PlaylistSettingsScreen extends HookConsumerWidget {
   }
 }
 
-class _LoadingCard extends StatelessWidget {
+class _LoadingCard extends HookWidget {
   const _LoadingCard({required this.progress});
 
   /// Set while a playlist downloads; otherwise playlists are loading
@@ -311,6 +313,7 @@ class _LoadingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final progress = this.progress;
+    final elapsed = _useElapsedSince(progress?.startedAt);
 
     return Card(
       child: Padding(
@@ -330,18 +333,26 @@ class _LoadingCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Downloading playlist...", style: textTheme.titleMedium),
+                    Text(
+                      progress.isWaiting ? "Waiting for the server..." : "Downloading playlist...",
+                      style: textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 16),
                     // Indeterminate when the server didn't report the size
-                    LinearProgressIndicator(value: progress.fraction),
+                    LinearProgressIndicator(value: progress.isWaiting ? null : progress.fraction),
                     const SizedBox(height: 12),
-                    Text(
-                      switch (progress.totalBytes) {
-                        final total? => "${formatBytes(progress.receivedBytes)} of ${formatBytes(total)}",
-                        null => "${formatBytes(progress.receivedBytes)} downloaded",
-                      },
-                    ),
-                    Text("${formatChannelCount(progress.channels)} found"),
+                    if (progress.isWaiting)
+                      const Text("Servers with many channels can take a few minutes to prepare the playlist")
+                    else ...[
+                      Text(
+                        switch (progress.totalBytes) {
+                          final total? => "${formatBytes(progress.receivedBytes)} of ${formatBytes(total)}",
+                          null => "${formatBytes(progress.receivedBytes)} downloaded",
+                        },
+                      ),
+                      Text("${formatChannelCount(progress.channels)} found"),
+                    ],
+                    if (elapsed != null) Text("Time elapsed: ${formatDuration(elapsed)}"),
                     const SizedBox(height: 12),
                     Text(
                       "The screen stays on until the playlist is loaded",
@@ -353,4 +364,18 @@ class _LoadingCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The whole seconds since [start], updated every second
+Duration? _useElapsedSince(DateTime? start) {
+  final ticks = useState(0);
+  useEffect(() {
+    if (start == null) return null;
+    final timer = Timer.periodic(const Duration(seconds: 1), (_) => ticks.value++);
+    return timer.cancel;
+  }, [start]);
+
+  if (start == null) return null;
+  final elapsed = DateTime.now().difference(start);
+  return elapsed.isNegative ? Duration.zero : Duration(seconds: elapsed.inSeconds);
 }

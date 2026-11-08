@@ -14,4 +14,12 @@ void main() {
     expect(formatBytes(256 * 1024 * 1024), "256.00 MB");
     expect(formatBytes(3 * 1024 * 1024 * 1024), "3.00 GB");
   });
+
+  test("formatDuration picks a readable unit", () {
+    expect(formatDuration(const Duration(milliseconds: 350)), "350 ms");
+    expect(formatDuration(const Duration(seconds: 30)), "30 s");
+    expect(formatDuration(const Duration(milliseconds: 45210)), "45.2 s");
+    expect(formatDuration(const Duration(minutes: 5)), "5 min");
+    expect(formatDuration(const Duration(seconds: 82, milliseconds: 400)), "1 min 22 s");
+  });
 }

@@ -12,3 +12,15 @@ String formatBytes(int bytes) {
   }
   return unit == 0 ? "$bytes B" : "${size.toStringAsFixed(2)} ${units[unit]}";
 }
+
+/// Formats a duration, e.g. "350 ms", "45.2 s", "5 min" or "1 min 22 s"
+String formatDuration(Duration duration) {
+  final milliseconds = duration.inMilliseconds;
+  if (milliseconds < 1000) return "$milliseconds ms";
+  if (milliseconds < 60000) {
+    return milliseconds % 1000 == 0 ? "${milliseconds ~/ 1000} s" : "${(milliseconds / 1000).toStringAsFixed(1)} s";
+  }
+  final minutes = duration.inMinutes;
+  final seconds = duration.inSeconds % 60;
+  return seconds == 0 ? "$minutes min" : "$minutes min $seconds s";
+}

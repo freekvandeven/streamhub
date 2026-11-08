@@ -12,11 +12,12 @@ import "package:streamhub/services/m3u_parser.dart";
 import "package:streamhub/services/playlist_storage.dart";
 import "package:streamhub/utils/formatting.dart";
 import "package:streamhub/utils/logger.dart";
+import "package:streamhub/utils/redact.dart";
 import "package:streamhub/utils/wakelock.dart";
 
 /// How far a playlist download has come
 class DownloadProgress {
-  const DownloadProgress({this.receivedBytes = 0, this.totalBytes, this.channels = 0});
+  const DownloadProgress({this.receivedBytes = 0, this.totalBytes, this.channels = 0, this.startedAt});
 
   final int receivedBytes;
 
@@ -25,6 +26,12 @@ class DownloadProgress {
 
   /// Channels found so far
   final int channels;
+
+  /// When the download was started
+  final DateTime? startedAt;
+
+  /// Whether the server is still preparing the playlist
+  bool get isWaiting => receivedBytes == 0;
 
   /// How much has been downloaded, from 0 to 1, or null if the size is unknown
   double? get fraction {
@@ -74,7 +81,11 @@ class PlaylistsState {
 
 /// Notifier for managing multiple playlists
 class PlaylistsNotifier extends Notifier<PlaylistsState> {
+  /// How often the progress of a download is logged
+  static const _logInterval = Duration(seconds: 5);
+
   PlaylistStorage get _storage => ref.read(playlistStorageProvider);
+  HttpService get _http => ref.read(httpServiceProvider);
 
   @override
   PlaylistsState build() {
@@ -118,6 +129,12 @@ class PlaylistsNotifier extends Notifier<PlaylistsState> {
     // Large playlists take minutes; don't let the screen turn off meanwhile
     unawaited(Wakelock.acquire());
 
+    // How far the download got, for the log
+    final stopwatch = Stopwatch();
+    PlaylistDownload? download;
+    var receivedBytes = 0;
+    final channels = <Channel>[];
+
     try {
       final existingPlaylist = state.playlists.where((p) => p.url == url).firstOrNull;
 
@@ -127,47 +144,62 @@ class PlaylistsNotifier extends Notifier<PlaylistsState> {
         return;
       }
 
-      final stopwatch = Stopwatch()..start();
-      state = state.copyWith(downloadProgress: const DownloadProgress());
-      final download = await HttpService.downloadPlaylist(url);
-      state = state.copyWith(downloadProgress: DownloadProgress(totalBytes: download.totalBytes));
+      Logger.info("${existingPlaylist == null ? "Adding" : "Refreshing"} playlist '$name'");
+      stopwatch.start();
+      final startedAt = DateTime.now();
+      DownloadProgress progress() => DownloadProgress(
+        receivedBytes: receivedBytes,
+        totalBytes: download?.totalBytes,
+        channels: channels.length,
+        startedAt: startedAt,
+      );
+      state = state.copyWith(downloadProgress: progress());
+      final currentDownload = download = await _http.downloadPlaylist(url);
+      state = state.copyWith(downloadProgress: progress());
       final playlistId = existingPlaylist?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
       final writer = unfinishedWriter = _storage.startWriting(playlistId);
 
       // Parse and store the playlist while it downloads, so a playlist of
       // hundreds of megabytes is never held in memory as a whole
-      final channels = <Channel>[];
       final parser = M3uParser.parseChunks((channel) {
         final categorized = ChannelCategorizer.categorizeChannel(channel);
         channels.add(categorized);
         writer.add(categorized);
       });
-      var receivedBytes = 0;
       var reportedBytes = 0;
       final sinceReport = Stopwatch()..start();
-      await for (final chunk in download.bytes) {
+      final sinceLog = Stopwatch()..start();
+      Duration? waited;
+      await for (final chunk in currentDownload.bytes) {
+        final transferStart = waited ??= stopwatch.elapsed;
         parser.add(chunk);
         receivedBytes += chunk.length;
         // Report progress regularly, but not for every network packet
         if (sinceReport.elapsedMilliseconds >= 200 || receivedBytes - reportedBytes >= 1 << 20) {
           sinceReport.reset();
           reportedBytes = receivedBytes;
-          state = state.copyWith(
-            downloadProgress: DownloadProgress(
-              receivedBytes: receivedBytes,
-              totalBytes: download.totalBytes,
-              channels: channels.length,
-            ),
+          state = state.copyWith(downloadProgress: progress());
+        }
+        if (sinceLog.elapsed >= _logInterval) {
+          sinceLog.reset();
+          Logger.data(
+            "Received ${_describeReceived(receivedBytes, currentDownload.totalBytes)} at "
+            "${_formatSpeed(receivedBytes, stopwatch.elapsed - transferStart)}, ${channels.length} channels",
           );
         }
         // Also slows the download down if storage can't keep up
         await writer.flush();
       }
       parser.close();
+      final downloadTime = stopwatch.elapsed;
+      final waitTime = waited ?? downloadTime;
+      final transferTime = downloadTime - waitTime;
       Logger.success(
         "Downloaded ${formatBytes(receivedBytes)} with ${channels.length} channels in "
-        "${_formatDuration(stopwatch.elapsed)}",
+        "${formatDuration(downloadTime)}: waited ${formatDuration(waitTime)} for the server, then "
+        "received the playlist in ${formatDuration(transferTime)} at ${_formatSpeed(receivedBytes, transferTime)}",
       );
+      if (channels.isEmpty) Logger.warning("The playlist contains no channels");
 
       final playlist = Playlist(
         id: playlistId,
@@ -195,7 +227,17 @@ class PlaylistsNotifier extends Notifier<PlaylistsState> {
         );
       }
     } on Exception catch (e, stackTrace) {
-      Logger.error("Failed to fetch playlist: $e\n$stackTrace");
+      final stage = switch (download) {
+        null => "before the server responded",
+        _ when receivedBytes == 0 => "before the server sent any data",
+        PlaylistDownload(:final totalBytes) =>
+          "after receiving ${_describeReceived(receivedBytes, totalBytes)} "
+              "with ${channels.length} channels",
+      };
+      Logger.error(
+        "Failed to fetch playlist after ${formatDuration(stopwatch.elapsed)}, $stage: $e",
+        stackTrace,
+      );
       error = _describeFetchError(e);
     } finally {
       // Throw away what was stored of a download that failed partway
@@ -233,7 +275,8 @@ class PlaylistsNotifier extends Notifier<PlaylistsState> {
 
 /// Converts a fetch failure into a message for the user
 String _describeFetchError(Exception error) {
-  return switch (error) {
+  final message = switch (error) {
+    TimeoutException(message: final message?) => message,
     TimeoutException() => "Connection timeout - server took too long to respond",
     HandshakeException() =>
       "SSL/TLS error: Unable to establish secure connection. "
@@ -249,9 +292,20 @@ String _describeFetchError(Exception error) {
     FormatException(:final message) => "Invalid URL: $message",
     _ => "Unexpected error: $error",
   };
+  // Some errors include the playlist URL, with the account's password
+  return redactUrls(message);
 }
 
-String _formatDuration(Duration duration) => "${(duration.inMilliseconds / 1000).toStringAsFixed(2)}s";
+/// Describes how much of a download was received, e.g. "1.00 MB of 4.00 MB (25%)"
+String _describeReceived(int receivedBytes, int? totalBytes) {
+  if (totalBytes == null || totalBytes <= 0) return formatBytes(receivedBytes);
+  return "${formatBytes(receivedBytes)} of ${formatBytes(totalBytes)} (${receivedBytes * 100 ~/ totalBytes}%)";
+}
+
+String _formatSpeed(int bytes, Duration duration) {
+  final seconds = duration.inMicroseconds / Duration.microsecondsPerSecond;
+  return seconds <= 0 ? "-" : "${formatBytes(bytes ~/ seconds)}/s";
+}
 
 /// Provider for playlists state
 final playlistsProvider = NotifierProvider<PlaylistsNotifier, PlaylistsState>(

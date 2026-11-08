@@ -7,7 +7,9 @@ import "package:hooks_riverpod/hooks_riverpod.dart";
 import "package:streamhub/models/channel.dart";
 import "package:streamhub/models/playlist.dart";
 import "package:streamhub/providers/playlists_provider.dart";
+import "package:streamhub/services/http_service.dart";
 import "package:streamhub/services/playlist_storage.dart";
+import "package:streamhub/utils/logger.dart";
 
 import "helpers/memory_playlist_storage.dart";
 
@@ -23,8 +25,13 @@ void main() {
   late String url;
 
   /// Starts a container with the playlists in [storage] loaded
-  Future<ProviderContainer> start(MemoryPlaylistStorage storage) async {
-    final container = ProviderContainer(overrides: [playlistStorageProvider.overrideWithValue(storage)]);
+  Future<ProviderContainer> start(MemoryPlaylistStorage storage, {HttpService http = const HttpService()}) async {
+    final container = ProviderContainer(
+      overrides: [
+        playlistStorageProvider.overrideWithValue(storage),
+        httpServiceProvider.overrideWithValue(http),
+      ],
+    );
     addTearDown(container.dispose);
     container.read(playlistsProvider);
     await Future<void>.delayed(Duration.zero);
@@ -32,6 +39,7 @@ void main() {
   }
 
   setUp(() async {
+    Logger.clear();
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     url = "http://127.0.0.1:${server.port}/playlist.m3u";
   });
@@ -101,5 +109,100 @@ void main() {
     expect(state.isLoading, isFalse);
     expect(state.playlists.single.channels.single.name, "Saved channel");
     expect(storage.playlists["1"]!.channels.single.name, "Saved channel");
+  });
+
+  test("doesn't log the credentials of an invalid URL", () async {
+    final container = await start(MemoryPlaylistStorage());
+
+    await container
+        .read(playlistsProvider.notifier)
+        .fetchPlaylist(url: "provider.example/get.php?username=alice&password=s3cret", name: "No scheme");
+
+    expect(container.read(playlistsProvider).error, "Invalid URL: Expected an http(s) URL");
+    expect(Logger.entries.join("\n"), isNot(contains("s3cret")));
+  });
+
+  group("timeouts", () {
+    // Short limits, so the tests don't take long
+    const http = HttpService(
+      connectTimeout: Duration(milliseconds: 300),
+      responseTimeout: Duration(seconds: 5),
+      idleTimeout: Duration(milliseconds: 300),
+    );
+    // Like an Xtream Codes playlist URL, with an account's credentials
+    late String xtreamUrl;
+    setUp(() => xtreamUrl = "http://127.0.0.1:${server.port}/get.php?username=alice&password=s3cret&type=m3u_plus");
+
+    Future<PlaylistsState> fetch({HttpService http = http}) async {
+      final container = await start(MemoryPlaylistStorage(), http: http);
+      await container.read(playlistsProvider.notifier).fetchPlaylist(url: xtreamUrl, name: "Xtream");
+      return container.read(playlistsProvider);
+    }
+
+    String log() => Logger.entries.join("\n");
+
+    test("waits for a server that prepares the playlist before responding", () async {
+      final body = _playlist(100);
+      server.listen((request) async {
+        // Longer than it may take to connect, or for the download to stall
+        await Future<void>.delayed(const Duration(seconds: 1));
+        request.response.add(body);
+        await request.response.close();
+      });
+
+      final state = await fetch();
+
+      expect(state.error, isNull);
+      expect(state.playlists.single.channels, hasLength(100));
+      expect(log(), contains("Server responded after"));
+      expect(log(), contains("Downloaded"));
+      expect(log(), isNot(contains("s3cret")));
+    });
+
+    test("waits for a server that responds before it sends the playlist", () async {
+      final body = _playlist(100);
+      server.listen((request) async {
+        request.response.contentLength = body.length;
+        await request.response.flush();
+        await Future<void>.delayed(const Duration(seconds: 1));
+        request.response.add(body);
+        await request.response.close();
+      });
+
+      final state = await fetch();
+
+      expect(state.error, isNull);
+      expect(state.playlists.single.channels, hasLength(100));
+    });
+
+    test("gives up on a server that doesn't respond in time", () async {
+      // Never responds
+      server.listen((request) {});
+
+      final state = await fetch(
+        http: const HttpService(responseTimeout: Duration(milliseconds: 500)),
+      );
+
+      expect(state.error, "The server didn't start sending the playlist within 500 ms");
+      expect(state.playlists, isEmpty);
+      expect(log(), contains("before the server responded"));
+      expect(log(), isNot(contains("s3cret")));
+    });
+
+    test("gives up on a download that stalls", () async {
+      final body = _playlist(1000);
+      server.listen((request) async {
+        request.response.contentLength = body.length;
+        request.response.add(body.sublist(0, body.length ~/ 2));
+        await request.response.flush();
+        // Never sends the rest
+      });
+
+      final state = await fetch();
+
+      expect(state.error, "The download stalled: no data received for 300 ms");
+      expect(state.playlists, isEmpty);
+      expect(log(), contains("after receiving"));
+    });
   });
 }
