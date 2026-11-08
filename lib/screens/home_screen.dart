@@ -52,7 +52,8 @@ class HomeScreen extends HookConsumerWidget {
     }, [categories, searchQuery.value]);
 
     // Channels in all playlists matching the search
-    final searchableChannels = ref.watch(searchableChannelsProvider);
+    // Only build the search index while searching channels
+    final searchableChannels = searchingChannels ? ref.watch(searchableChannelsProvider) : const <SearchableChannel>[];
     final matchingChannels = useMemoized(
       () => searchingChannels ? searchChannels(searchableChannels, searchQuery.value) : const <Channel>[],
       [searchableChannels, searchQuery.value, searchingChannels],

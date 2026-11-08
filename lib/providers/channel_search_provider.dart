@@ -6,8 +6,9 @@ import "package:streamhub/providers/playlists_provider.dart";
 /// of a large playlist on each keystroke
 typedef SearchableChannel = ({Channel channel, String name});
 
-/// All channels from all playlists, ready to search with [searchChannels]
-final searchableChannelsProvider = Provider<List<SearchableChannel>>((ref) {
+/// All channels from all playlists, ready to search with [searchChannels].
+/// Only kept while watched, since it copies every channel name.
+final searchableChannelsProvider = Provider.autoDispose<List<SearchableChannel>>((ref) {
   final playlists = ref.watch(playlistsProvider.select((s) => s.playlists));
   return [
     for (final playlist in playlists)
