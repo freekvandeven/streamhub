@@ -4,6 +4,7 @@ import "package:streamhub/models/channel.dart";
 import "package:streamhub/screens/category_channels_screen.dart";
 import "package:streamhub/screens/favorites_screen.dart";
 import "package:streamhub/screens/home_screen.dart";
+import "package:streamhub/screens/log_screen.dart";
 import "package:streamhub/screens/multi_view_screen.dart";
 import "package:streamhub/screens/playlist_settings_screen.dart";
 import "package:streamhub/screens/settings_screen.dart";
@@ -20,6 +21,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: "/settings/playlists",
         builder: (context, state) => const PlaylistSettingsScreen(),
+      ),
+      GoRoute(
+        path: "/settings/logs",
+        builder: (context, state) => const LogScreen(),
       ),
       GoRoute(
         path: "/favorites",

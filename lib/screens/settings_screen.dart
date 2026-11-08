@@ -54,6 +54,13 @@ class SettingsScreen extends HookWidget {
               packageInfo == null ? "" : "${packageInfo.version} (${packageInfo.buildNumber})",
             ),
           ),
+          ListTile(
+            leading: const Icon(Icons.bug_report_outlined),
+            title: const Text("Debug log"),
+            subtitle: const Text("Recent activity, to help find problems"),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push("/settings/logs"),
+          ),
         ],
       ),
     );

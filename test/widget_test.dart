@@ -13,10 +13,12 @@ import "package:streamhub/models/channel.dart";
 import "package:streamhub/models/playlist.dart";
 import "package:streamhub/providers/playlists_provider.dart";
 import "package:streamhub/screens/home_screen.dart";
+import "package:streamhub/screens/log_screen.dart";
 import "package:streamhub/screens/playlist_settings_screen.dart";
 import "package:streamhub/screens/settings_screen.dart";
 import "package:streamhub/screens/video_player_screen.dart";
 import "package:streamhub/services/playlist_storage.dart";
+import "package:streamhub/utils/logger.dart";
 
 import "helpers/memory_playlist_storage.dart";
 
@@ -251,6 +253,18 @@ void main() {
     expect(tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator)).value, isNull);
   });
 
+  testWidgets("Shows and clears the debug log", (WidgetTester tester) async {
+    Logger.clear();
+    Logger.network("GET http://host/get.php?username=alice&password=s3cret");
+    await tester.pumpWidget(const MaterialApp(home: LogScreen()));
+
+    expect(find.textContaining("GET http://host/get.php?username=***&password=***"), findsOneWidget);
+
+    await tester.tap(find.byTooltip("Clear log"));
+    await tester.pump();
+    expect(find.text("Nothing logged yet"), findsOneWidget);
+  });
+
   testWidgets("Shows the app version in settings", (WidgetTester tester) async {
     PackageInfo.setMockInitialValues(
       appName: "StreamHub",
@@ -263,6 +277,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text("1.2.3 (4)"), findsOneWidget);
+    expect(find.text("Debug log"), findsOneWidget);
   });
 
   testWidgets("Retries a stream that failed to load", (WidgetTester tester) async {
