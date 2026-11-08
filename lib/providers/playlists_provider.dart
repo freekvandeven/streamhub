@@ -1,5 +1,4 @@
 import "dart:async";
-import "dart:convert";
 import "dart:io";
 
 import "package:flutter/foundation.dart";
@@ -47,8 +46,6 @@ class PlaylistsState {
 
 /// Notifier for managing multiple playlists
 class PlaylistsNotifier extends Notifier<PlaylistsState> {
-  static const _fetchTimeout = Duration(minutes: 5);
-
   PlaylistStorage get _storage => ref.read(playlistStorageProvider);
 
   @override
@@ -89,6 +86,7 @@ class PlaylistsNotifier extends Notifier<PlaylistsState> {
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
     String? error;
+    PlaylistWriter? unfinishedWriter;
 
     try {
       final existingPlaylist = state.playlists.where((p) => p.url == url).firstOrNull;
@@ -100,29 +98,40 @@ class PlaylistsNotifier extends Notifier<PlaylistsState> {
       }
 
       final stopwatch = Stopwatch()..start();
-      final bytes = await HttpService.fetchPlaylist(url).timeout(
-        _fetchTimeout,
-      );
-      Logger.data(
-        "Fetched ${_formatBytes(bytes.length)} in "
-        "${_formatDuration(stopwatch.elapsed)}",
-      );
+      final download = await HttpService.downloadPlaylist(url);
+      final playlistId = existingPlaylist?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
+      final writer = unfinishedWriter = _storage.startWriting(playlistId);
 
-      stopwatch.reset();
-      final channels = await compute(_parsePlaylist, bytes);
+      // Parse and store the playlist while it downloads, so a playlist of
+      // hundreds of megabytes is never held in memory as a whole
+      final channels = <Channel>[];
+      final parser = M3uParser.parseChunks((channel) {
+        final categorized = ChannelCategorizer.categorizeChannel(channel);
+        channels.add(categorized);
+        writer.add(categorized);
+      });
+      var receivedBytes = 0;
+      await for (final chunk in download.bytes) {
+        parser.add(chunk);
+        receivedBytes += chunk.length;
+        // Also slows the download down if storage can't keep up
+        await writer.flush();
+      }
+      parser.close();
       Logger.success(
-        "Parsed and categorized ${channels.length} channels in "
+        "Downloaded ${_formatBytes(receivedBytes)} with ${channels.length} channels in "
         "${_formatDuration(stopwatch.elapsed)}",
       );
 
       final playlist = Playlist(
-        id: existingPlaylist?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        id: playlistId,
         name: name,
         url: url,
         channels: channels,
         lastUpdate: DateTime.now(),
       );
-      await _storage.savePlaylist(playlist);
+      await writer.commit(playlist);
+      unfinishedWriter = null;
 
       if (existingPlaylist == null) {
         // Newly added playlists become the active one
@@ -143,6 +152,8 @@ class PlaylistsNotifier extends Notifier<PlaylistsState> {
       Logger.error("Failed to fetch playlist: $e\n$stackTrace");
       error = _describeFetchError(e);
     } finally {
+      // Throw away what was stored of a download that failed partway
+      if (unfinishedWriter != null) unawaited(unfinishedWriter.discard());
       state = state.copyWith(isLoading: false, error: error);
     }
   }
@@ -171,12 +182,6 @@ class PlaylistsNotifier extends Notifier<PlaylistsState> {
 
     state = PlaylistsState(playlists: playlists, activePlaylistId: activeId);
   }
-}
-
-/// Decodes, parses and categorizes a playlist. Runs in a background isolate.
-List<Channel> _parsePlaylist(Uint8List bytes) {
-  final content = utf8.decode(bytes, allowMalformed: true);
-  return ChannelCategorizer.categorize(M3uParser.parse(content));
 }
 
 /// Converts a fetch failure into a message for the user

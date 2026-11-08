@@ -1,4 +1,8 @@
+import "dart:convert";
+import "dart:math";
+
 import "package:flutter_test/flutter_test.dart";
+import "package:streamhub/models/channel.dart";
 import "package:streamhub/services/m3u_parser.dart";
 
 void main() {
@@ -50,6 +54,35 @@ void main() {
       );
 
       expect(channels.single.name, "Fallback");
+    });
+
+    test("parses content that arrives in chunks of any size", () {
+      final bytes = utf8.encode(
+        '#EXTM3U\r\n#EXTINF:-1 group-title="Café",Ünïcode Channel\r\nhttp://s/1\r\n#EXTINF:-1,Second\nhttp://s/2',
+      );
+      // Splits lines, line endings and multi-byte characters across chunks
+      for (final size in [1, 2, 3, 7, bytes.length]) {
+        final channels = <Channel>[];
+        final sink = M3uParser.parseChunks(channels.add);
+        for (var i = 0; i < bytes.length; i += size) {
+          sink.add(bytes.sublist(i, min(i + size, bytes.length)));
+        }
+        sink.close();
+
+        expect(channels.map((c) => c.name), ["Ünïcode Channel", "Second"], reason: "chunks of $size");
+        expect(channels.first.groupTitle, "Café");
+        expect(channels.last.url, "http://s/2");
+      }
+    });
+
+    test("leaves out tvg-name when it repeats the channel name", () {
+      final channels = M3uParser.parse(
+        '#EXTINF:-1 tvg-name="Same",Same\nhttp://s/1\n'
+        '#EXTINF:-1 tvg-name="Other",Name\nhttp://s/2\n',
+      );
+
+      expect(channels.first.tvgName, isNull);
+      expect(channels.last.tvgName, "Other");
     });
 
     test("ignores other directives and URLs without metadata", () {
