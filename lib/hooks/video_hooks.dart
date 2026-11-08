@@ -61,12 +61,25 @@ VideoStream useVideoStream(String url, {bool mixWithOthers = false}) {
   return (controller: current?.controller, error: current?.error, retry: () => attempt.value++);
 }
 
-/// Keeps the screen on while the calling widget is shown
-void useWakelock() {
+/// Keeps the screen on while the calling widget is shown and [enabled] is set
+void useWakelock({bool enabled = true}) {
   useEffect(() {
+    if (!enabled) return null;
     unawaited(Wakelock.acquire());
     return () => unawaited(Wakelock.release());
-  }, const []);
+  }, [enabled]);
+}
+
+/// Keeps the screen on while [stream] loads or plays. Like in other video
+/// apps, it can turn off again once the stream is paused, ended or has failed.
+void useWakelockWhileWatching(VideoStream stream) {
+  final controller = stream.controller;
+  final isWatching = useListenableSelector(controller, () {
+    if (controller == null) return stream.error == null;
+    final value = controller.value;
+    return !value.hasError && (value.isPlaying || value.isBuffering);
+  });
+  useWakelock(enabled: isWatching);
 }
 
 /// Allows landscape while the calling widget is shown, then restores the

@@ -1,11 +1,16 @@
+import "package:flutter/foundation.dart";
 import "package:streamhub/utils/logger.dart";
 import "package:wakelock_plus/wakelock_plus.dart";
 
-/// Keeps the screen on while anything holds the wakelock, such as a split
-/// screen or a playlist download. Holders are counted, so one letting go
+/// Keeps the screen on while anything holds the wakelock, such as a playing
+/// stream or a playlist download. Holders are counted, so one letting go
 /// doesn't turn the screen off for another.
 abstract final class Wakelock {
   static var _holders = 0;
+
+  /// How many holders currently keep the screen on
+  @visibleForTesting
+  static int get holders => _holders;
 
   /// Keeps the screen on until a matching [release]
   static Future<void> acquire() async {

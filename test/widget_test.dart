@@ -19,6 +19,7 @@ import "package:streamhub/screens/settings_screen.dart";
 import "package:streamhub/screens/video_player_screen.dart";
 import "package:streamhub/services/playlist_storage.dart";
 import "package:streamhub/utils/logger.dart";
+import "package:streamhub/utils/wakelock.dart";
 
 import "helpers/memory_playlist_storage.dart";
 
@@ -278,6 +279,24 @@ void main() {
 
     expect(find.text("1.2.3 (4)"), findsOneWidget);
     expect(find.text("Debug log"), findsOneWidget);
+  });
+
+  testWidgets("Keeps the screen on while a stream loads, but not after it failed", (WidgetTester tester) async {
+    await tester.pumpWidget(
+      _scope(
+        const MaterialApp(
+          home: VideoPlayerScreen(
+            channel: Channel(name: "Test", url: "https://example.com/stream.m3u8"),
+          ),
+        ),
+      ),
+    );
+    expect(Wakelock.holders, 1);
+
+    // video_player has no platform implementation in tests, so loading fails
+    await tester.pumpAndSettle();
+    expect(find.text("Failed to Load Stream"), findsOneWidget);
+    expect(Wakelock.holders, 0);
   });
 
   testWidgets("Retries a stream that failed to load", (WidgetTester tester) async {

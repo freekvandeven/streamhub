@@ -25,6 +25,7 @@ class VideoPlayerScreen extends HookConsumerWidget {
     );
 
     final stream = useVideoStream(channel.url);
+    useWakelockWhileWatching(stream);
     final primaryColor = Theme.of(context).colorScheme.primary;
 
     // Chewie adds the controls around the player once it's ready
