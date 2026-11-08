@@ -1,11 +1,11 @@
 import "package:firebase_core/firebase_core.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter_native_splash/flutter_native_splash.dart";
+import "package:hive_flutter/hive_flutter.dart";
 import "package:hooks_riverpod/hooks_riverpod.dart";
 import "package:material_ui/material_ui.dart";
 import "package:streamhub/firebase_options.dart";
 import "package:streamhub/router/app_router.dart";
-import "package:streamhub/services/playlist_storage.dart";
 
 /// Whether this platform is registered with Firebase. Keep in sync with the
 /// platforms passed to `flutterfire configure`.
@@ -19,7 +19,7 @@ Future<void> main() async {
   if (_isFirebaseConfigured) {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   }
-  await PlaylistStorage.init();
+  await Hive.initFlutter();
 
   runApp(const ProviderScope(child: MyApp()));
   FlutterNativeSplash.remove();

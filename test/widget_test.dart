@@ -16,19 +16,27 @@ import "package:streamhub/screens/settings_screen.dart";
 import "package:streamhub/screens/video_player_screen.dart";
 import "package:streamhub/services/playlist_storage.dart";
 
-Future<void> _savePlaylist() {
-  return PlaylistStorage.savePlaylist(
-    Playlist(
-      id: "1",
-      name: "Test",
-      url: "http://example.com/test.m3u",
-      channels: const [
-        Channel(name: "Sky Sports", url: "http://s/1", groupTitle: "Sports"),
-        Channel(name: "ESPN", url: "http://s/2", groupTitle: "Sports"),
-        Channel(name: "BBC News", url: "http://s/3", groupTitle: "News"),
-      ],
-      lastUpdate: DateTime(2025),
-    ),
+import "helpers/memory_playlist_storage.dart";
+
+final _playlist = Playlist(
+  id: "1",
+  name: "Test",
+  url: "http://example.com/test.m3u",
+  channels: const [
+    Channel(name: "Sky Sports", url: "http://s/1", groupTitle: "Sports"),
+    Channel(name: "ESPN", url: "http://s/2", groupTitle: "Sports"),
+    Channel(name: "BBC News", url: "http://s/3", groupTitle: "News"),
+  ],
+  lastUpdate: DateTime(2025),
+);
+
+/// Runs [child] with playlists kept in memory, optionally with [_playlist]
+Widget _scope(Widget child, {bool withPlaylist = false}) {
+  return ProviderScope(
+    overrides: [
+      playlistStorageProvider.overrideWithValue(MemoryPlaylistStorage([if (withPlaylist) _playlist])),
+    ],
+    child: child,
   );
 }
 
@@ -41,10 +49,8 @@ void main() {
   });
 
   setUp(() async {
-    // Open the boxes up front: widget tests can't wait for real file IO
-    final playlists = await Hive.openBox<dynamic>("playlists");
-    await playlists.clear();
-    // Favorites are written from the UI, so keep them in memory
+    // Favorites are written from the UI, and widget tests can't wait for real
+    // file IO, so keep them in memory
     final favorites = await Hive.openBox<dynamic>("favorites", bytes: Uint8List(0));
     await favorites.clear();
   });
@@ -60,9 +66,7 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      const ProviderScope(
-        child: MaterialApp(home: HomeScreen()),
-      ),
+      _scope(const MaterialApp(home: HomeScreen())),
     );
 
     expect(find.text("StreamHub"), findsOneWidget);
@@ -77,9 +81,7 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      const ProviderScope(
-        child: MaterialApp(home: HomeScreen()),
-      ),
+      _scope(const MaterialApp(home: HomeScreen())),
     );
 
     await tester.pumpAndSettle();
@@ -94,12 +96,7 @@ void main() {
   testWidgets("Shows saved categories and filters them", (
     WidgetTester tester,
   ) async {
-    await tester.runAsync(_savePlaylist);
-    await tester.pumpWidget(
-      const ProviderScope(
-        child: MaterialApp(home: HomeScreen()),
-      ),
-    );
+    await tester.pumpWidget(_scope(const MaterialApp(home: HomeScreen()), withPlaylist: true));
     await tester.pumpAndSettle();
 
     expect(find.text("Sports"), findsOneWidget);
@@ -119,8 +116,7 @@ void main() {
   testWidgets("Opens a category and navigates back to home", (
     WidgetTester tester,
   ) async {
-    await tester.runAsync(_savePlaylist);
-    await tester.pumpWidget(const ProviderScope(child: MyApp()));
+    await tester.pumpWidget(_scope(const MyApp(), withPlaylist: true));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text("Sports"));
@@ -137,8 +133,7 @@ void main() {
   });
 
   testWidgets("Adds a channel to favorites", (WidgetTester tester) async {
-    await tester.runAsync(_savePlaylist);
-    await tester.pumpWidget(const ProviderScope(child: MyApp()));
+    await tester.pumpWidget(_scope(const MyApp(), withPlaylist: true));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text("Sports"));
@@ -162,12 +157,7 @@ void main() {
   });
 
   testWidgets("Searches channels in all categories", (WidgetTester tester) async {
-    await tester.runAsync(_savePlaylist);
-    await tester.pumpWidget(
-      const ProviderScope(
-        child: MaterialApp(home: HomeScreen()),
-      ),
-    );
+    await tester.pumpWidget(_scope(const MaterialApp(home: HomeScreen()), withPlaylist: true));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip("Search channel names in all playlists"));
@@ -190,7 +180,7 @@ void main() {
   });
 
   testWidgets("Uses Material page routes", (WidgetTester tester) async {
-    await tester.pumpWidget(const ProviderScope(child: MyApp()));
+    await tester.pumpWidget(_scope(const MyApp()));
     await tester.pumpAndSettle();
 
     // go_router only builds Material pages (with their transitions) when it
@@ -202,7 +192,7 @@ void main() {
   testWidgets("Provides legacy Material theme and localizations", (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const ProviderScope(child: MyApp()));
+    await tester.pumpWidget(_scope(const MyApp()));
     await tester.pumpAndSettle();
 
     final context = tester.element(find.byType(HomeScreen));
@@ -230,8 +220,8 @@ void main() {
   testWidgets("Retries a stream that failed to load", (WidgetTester tester) async {
     // video_player has no platform implementation in tests, so loading fails
     await tester.pumpWidget(
-      const ProviderScope(
-        child: MaterialApp(
+      _scope(
+        const MaterialApp(
           home: VideoPlayerScreen(
             channel: Channel(name: "Test", url: "https://example.com/stream.m3u8"),
           ),

@@ -10,19 +10,27 @@ import "package:streamhub/screens/multi_view_screen.dart";
 import "package:streamhub/services/playlist_storage.dart";
 import "package:streamhub/widgets/stream_pane.dart";
 
+import "helpers/memory_playlist_storage.dart";
+
 // video_player has no platform implementation in tests, so the panes show an
 // error, which is enough to check the layout and behavior
 const _one = Channel(name: "Channel One", url: "https://s/1.m3u8", groupTitle: "News");
 const _two = Channel(name: "Channel Two", url: "https://s/2.m3u8", groupTitle: "Sports");
 const _three = Channel(name: "Channel Three", url: "https://s/3.m3u8", groupTitle: "Kids");
 
-Future<void> _pumpMultiView(WidgetTester tester, List<Channel> channels, {required Size size}) async {
+Future<void> _pumpMultiView(
+  WidgetTester tester,
+  List<Channel> channels, {
+  required Size size,
+  List<Playlist> playlists = const [],
+}) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
 
   await tester.pumpWidget(
     ProviderScope(
+      overrides: [playlistStorageProvider.overrideWithValue(MemoryPlaylistStorage(playlists))],
       child: MaterialApp(home: MultiViewScreen(initialChannels: channels)),
     ),
   );
@@ -36,10 +44,8 @@ Finder _inPane(String name, Finder finder) => find.descendant(of: _pane(name), m
 void main() {
   setUp(() async {
     // In memory, so storage writes complete within widget tests
-    for (final name in ["playlists", "favorites"]) {
-      final box = await Hive.openBox<dynamic>(name, bytes: Uint8List(0));
-      await box.clear();
-    }
+    final favorites = await Hive.openBox<dynamic>("favorites", bytes: Uint8List(0));
+    await favorites.clear();
   });
 
   testWidgets("shows two streams side by side on wide screens", (WidgetTester tester) async {
@@ -86,18 +92,14 @@ void main() {
   });
 
   testWidgets("adds a channel from the picker and removes streams", (WidgetTester tester) async {
-    await tester.runAsync(
-      () => PlaylistStorage.savePlaylist(
-        Playlist(
-          id: "1",
-          name: "Test",
-          url: "http://example.com/test.m3u",
-          channels: const [_one, _two],
-          lastUpdate: DateTime(2025),
-        ),
-      ),
+    final playlist = Playlist(
+      id: "1",
+      name: "Test",
+      url: "http://example.com/test.m3u",
+      channels: const [_one, _two],
+      lastUpdate: DateTime(2025),
     );
-    await _pumpMultiView(tester, [_one], size: const Size(1200, 700));
+    await _pumpMultiView(tester, [_one], size: const Size(1200, 700), playlists: [playlist]);
 
     await tester.tap(find.text("Add channel"));
     await tester.pumpAndSettle();

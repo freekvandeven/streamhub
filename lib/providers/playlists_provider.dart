@@ -49,6 +49,8 @@ class PlaylistsState {
 class PlaylistsNotifier extends Notifier<PlaylistsState> {
   static const _fetchTimeout = Duration(minutes: 5);
 
+  PlaylistStorage get _storage => ref.read(playlistStorageProvider);
+
   @override
   PlaylistsState build() {
     unawaited(_loadFromStorage());
@@ -62,8 +64,8 @@ class PlaylistsNotifier extends Notifier<PlaylistsState> {
     String? error;
 
     try {
-      playlists = await PlaylistStorage.loadAllPlaylists();
-      activeId = await PlaylistStorage.getActivePlaylistId();
+      playlists = await _storage.loadAllPlaylists();
+      activeId = await _storage.getActivePlaylistId();
     } on Exception catch (e) {
       Logger.error("Failed to load playlists: $e");
       error = "Could not load saved playlists: $e";
@@ -120,11 +122,11 @@ class PlaylistsNotifier extends Notifier<PlaylistsState> {
         channels: channels,
         lastUpdate: DateTime.now(),
       );
-      await PlaylistStorage.savePlaylist(playlist);
+      await _storage.savePlaylist(playlist);
 
       if (existingPlaylist == null) {
         // Newly added playlists become the active one
-        await PlaylistStorage.setActivePlaylistId(playlist.id);
+        await _storage.setActivePlaylistId(playlist.id);
         state = state.copyWith(
           playlists: [...state.playlists, playlist],
           activePlaylistId: playlist.id,
@@ -147,13 +149,13 @@ class PlaylistsNotifier extends Notifier<PlaylistsState> {
 
   /// Sets the active playlist
   Future<void> setActivePlaylist(String playlistId) async {
-    await PlaylistStorage.setActivePlaylistId(playlistId);
+    await _storage.setActivePlaylistId(playlistId);
     state = state.copyWith(activePlaylistId: playlistId);
   }
 
   /// Removes a playlist
   Future<void> removePlaylist(String playlistId) async {
-    await PlaylistStorage.removePlaylist(playlistId);
+    await _storage.removePlaylist(playlistId);
 
     final playlists = [
       for (final p in state.playlists)
@@ -164,7 +166,7 @@ class PlaylistsNotifier extends Notifier<PlaylistsState> {
     var activeId = state.activePlaylistId;
     if (activeId == playlistId) {
       activeId = playlists.firstOrNull?.id;
-      await PlaylistStorage.setActivePlaylistId(activeId);
+      await _storage.setActivePlaylistId(activeId);
     }
 
     state = PlaylistsState(playlists: playlists, activePlaylistId: activeId);
